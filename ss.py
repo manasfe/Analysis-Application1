@@ -1,7 +1,5 @@
 import streamlit as st
 import random
-import json
-from pathlib import Path
 
 # Configure page with a festive theme
 st.set_page_config(
@@ -53,7 +51,7 @@ st.markdown("""
         }
         
         /* Card styling */
-        .css-1r6slb0 {
+        div[data-testid="stForm"] {
             background-color: white;
             padding: 20px;
             border-radius: 10px;
@@ -61,11 +59,9 @@ st.markdown("""
         }
         
         /* Success message styling */
-        .stSuccess {
-            background-color: var(--secondary-color);
+        div[data-testid="stAlert"] {
             padding: 20px;
             border-radius: 10px;
-            color: white;
         }
         
         /* Festive decorations */
@@ -74,50 +70,48 @@ st.markdown("""
             font-size: 24px;
             margin: 20px 0;
         }
+        
+        /* Container styling */
+        div[data-testid="stVerticalBlock"] {
+            padding: 10px;
+        }
     </style>
 """, unsafe_allow_html=True)
 
-def load_assignments():
-    """Load existing assignments from file"""
-    try:
-        with open('assignments.json', 'r') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return {}
+# Initialize session state for assignments
+if 'assignments' not in st.session_state:
+    st.session_state.assignments = {}
 
-def save_assignments(assignments):
-    """Save assignments to file"""
-    with open('assignments.json', 'w') as f:
-        json.dump(assignments, f)
-
-def generate_assignments(participants):
-    """Generate random Secret Santa assignments"""
-    if not hasattr(st.session_state, 'assignments'):
-        st.session_state.assignments = load_assignments()
-    
-    # Only generate new assignments for participants who don't have one
-    unassigned = [p for p in participants if p not in st.session_state.assignments]
-    available_recipients = [p for p in participants if p not in st.session_state.assignments.values()]
-    
-    for santa in unassigned:
-        possible_recipients = [r for r in available_recipients if r != santa]
-        if possible_recipients:
-            recipient = random.choice(possible_recipients)
-            st.session_state.assignments[santa] = recipient
-            available_recipients.remove(recipient)
-    
-    save_assignments(st.session_state.assignments)
+if 'assignment_done' not in st.session_state:
+    st.session_state.assignment_done = False
 
 def verify_login(username, password):
     """Verify user login credentials"""
     return username in USERS and USERS[username] == password
 
+def generate_assignments():
+    """Generate random Secret Santa assignments"""
+    if not st.session_state.assignment_done:
+        participants = list(USERS.keys())
+        recipients = participants.copy()
+        
+        for santa in participants:
+            if santa not in st.session_state.assignments:
+                possible_recipients = [r for r in recipients if r != santa]
+                if possible_recipients:
+                    recipient = random.choice(possible_recipients)
+                    st.session_state.assignments[santa] = recipient
+                    recipients.remove(recipient)
+        
+        st.session_state.assignment_done = True
+
 def main():
-    # Initialize session state
+    # Initialize session state for login
     if 'logged_in' not in st.session_state:
         st.session_state.logged_in = False
+    
+    if 'username' not in st.session_state:
         st.session_state.username = None
-        st.session_state.assignments = load_assignments()
 
     # Display festive header
     st.markdown("<h1 style='text-align: center;'>🎄 Secret Santa 2024 🎅</h1>", unsafe_allow_html=True)
@@ -131,16 +125,15 @@ def main():
             with st.form("login_form"):
                 username = st.text_input("Username")
                 password = st.text_input("Password", type="password")
-                submitted = st.form_submit_button("Login 🎄")
+                submit_button = st.form_submit_button("Login 🎄")
                 
-                if submitted:
+                if submit_button:
                     if verify_login(username, password):
                         st.session_state.logged_in = True
                         st.session_state.username = username
-                        # Generate assignments if needed
-                        generate_assignments(list(USERS.keys()))
+                        generate_assignments()
                         st.success("Ho Ho Ho! Login successful! 🎅")
-                        st.experimental_rerun()
+                        st.rerun()
                     else:
                         st.error("Invalid username or password! 🎅❌")
     
@@ -153,7 +146,7 @@ def main():
             if st.button("🚪 Logout"):
                 st.session_state.logged_in = False
                 st.session_state.username = None
-                st.experimental_rerun()
+                st.rerun()
         
         with col1:
             st.markdown("### 🎁 Your Secret Santa Assignment")
