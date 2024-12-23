@@ -156,8 +156,7 @@ def main():
                 
                 st.markdown("""
                 ### 🎄 Gift Exchange Guidelines:
-                * 🎁 Budget: ₹500-1000
-                * 📅 Exchange Date: December 25, 2024
+                * 🎁 Budget: ₹200
                 * 🤫 Keep it a secret until the reveal!
                 * 🎯 Consider your recipient's interests
                 * 📝 Include a festive card with your gift
