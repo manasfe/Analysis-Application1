@@ -5,27 +5,6 @@ import io
 import tempfile
 import os
 
-# Try importing plotly with fallback
-try:
-    import plotly.express as px
-    import plotly.graph_objects as go
-    from plotly.subplots import make_subplots
-    PLOTLY_AVAILABLE = True
-except ImportError as e:
-    st.error("Plotly not available. Installing plotly...")
-    import subprocess
-    import sys
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "plotly"])
-    try:
-        import plotly.express as px
-        import plotly.graph_objects as go
-        from plotly.subplots import make_subplots
-        PLOTLY_AVAILABLE = True
-        st.success("Plotly installed successfully!")
-    except ImportError:
-        st.error("Failed to install plotly. Charts will not be available.")
-        PLOTLY_AVAILABLE = False
-
 # Import required libraries for audio and text processing
 WHISPER_AVAILABLE = False
 TRANSFORMERS_AVAILABLE = False
@@ -155,99 +134,58 @@ def analyze_audio_sentiment(transcription, sentiment_pipe, classifier):
         st.error(f"Error analyzing sentiment: {e}")
         return None, None
 
-def create_audio_charts(sentiment_result, top_labels):
-    """Create charts for audio sentiment analysis"""
+def display_audio_charts(sentiment_result, top_labels):
+    """Display audio sentiment analysis using Streamlit native charts"""
     
-    if not PLOTLY_AVAILABLE:
-        st.warning("Charts not available. Plotly not installed.")
-        return None
+    col1, col2 = st.columns(2)
     
-    # Create subplots
-    fig = make_subplots(
-        rows=2, cols=2,
-        subplot_titles=('Overall Sentiment', 'Top 5 Tone Characteristics', 
-                       'Confidence Score', 'All Tone Characteristics'),
-        specs=[[{"type": "indicator"}, {"type": "bar"}],
-               [{"type": "gauge"}, {"type": "bar"}]]
-    )
+    with col1:
+        st.subheader("📊 Overall Sentiment")
+        sentiment_score = float(sentiment_result[0]['label'].split()[0])
+        confidence = sentiment_result[0]['score'] * 100
+        
+        # Display as metrics
+        st.metric(
+            label="Sentiment Score (1-5 stars)", 
+            value=f"{sentiment_score}/5",
+            delta=f"{confidence:.1f}% confidence"
+        )
+        
+        # Create a simple progress bar for sentiment
+        st.write("**Sentiment Visualization:**")
+        st.progress(sentiment_score / 5.0)
+        
+        # Confidence gauge using progress bar
+        st.write("**Confidence Level:**")
+        st.progress(confidence / 100.0)
+        
+    with col2:
+        st.subheader("🎭 Top 5 Tone Characteristics")
+        top_5 = top_labels[:5]
+        
+        # Create DataFrame for bar chart
+        tone_df = pd.DataFrame({
+            'Characteristic': [label.capitalize() for label, _ in top_5],
+            'Confidence': [score * 100 for _, score in top_5]
+        })
+        
+        # Display as bar chart
+        st.bar_chart(tone_df.set_index('Characteristic'))
+        
+        # Also display as table for detailed view
+        st.write("**Detailed Breakdown:**")
+        for label, score in top_5:
+            st.write(f"• **{label.capitalize()}:** {round(score*100, 1)}%")
     
-    # Overall sentiment gauge
-    sentiment_score = float(sentiment_result[0]['label'].split()[0])
-    fig.add_trace(
-        go.Indicator(
-            mode="gauge+number+delta",
-            value=sentiment_score,
-            domain={'x': [0, 1], 'y': [0, 1]},
-            title={'text': "Sentiment (1-5 Stars)"},
-            gauge={
-                'axis': {'range': [None, 5]},
-                'bar': {'color': "darkblue"},
-                'steps': [
-                    {'range': [0, 2], 'color': "lightgray"},
-                    {'range': [2, 4], 'color': "gray"},
-                    {'range': [4, 5], 'color': "lightgreen"}
-                ],
-                'threshold': {
-                    'line': {'color': "red", 'width': 4},
-                    'thickness': 0.75,
-                    'value': 4.5
-                }
-            }
-        ),
-        row=1, col=1
-    )
+    # Full characteristics table
+    st.subheader("📋 All Tone Characteristics")
+    all_characteristics_df = pd.DataFrame({
+        'Characteristic': [label.capitalize() for label, _ in top_labels],
+        'Confidence %': [round(score*100, 1) for _, score in top_labels]
+    })
+    st.dataframe(all_characteristics_df, use_container_width=True)
     
-    # Top 5 characteristics bar chart
-    top_5 = top_labels[:5]
-    fig.add_trace(
-        go.Bar(
-            x=[score*100 for _, score in top_5],
-            y=[label.capitalize() for label, _ in top_5],
-            orientation='h',
-            marker_color='lightblue'
-        ),
-        row=1, col=2
-    )
-    
-    # Confidence score
-    confidence = sentiment_result[0]['score'] * 100
-    fig.add_trace(
-        go.Indicator(
-            mode="gauge+number",
-            value=confidence,
-            domain={'x': [0, 1], 'y': [0, 1]},
-            title={'text': "Confidence %"},
-            gauge={
-                'axis': {'range': [None, 100]},
-                'bar': {'color': "green"},
-                'steps': [
-                    {'range': [0, 50], 'color': "lightgray"},
-                    {'range': [50, 80], 'color': "yellow"},
-                    {'range': [80, 100], 'color': "lightgreen"}
-                ]
-            }
-        ),
-        row=2, col=1
-    )
-    
-    # All characteristics
-    all_labels = top_labels[:10]  # Show top 10
-    fig.add_trace(
-        go.Bar(
-            x=[label.capitalize() for label, _ in all_labels],
-            y=[score*100 for _, score in all_labels],
-            marker_color='orange'
-        ),
-        row=2, col=2
-    )
-    
-    fig.update_layout(height=600, showlegend=False)
-    fig.update_xaxes(title_text="Confidence %", row=1, col=2)
-    fig.update_yaxes(title_text="Characteristics", row=1, col=2)
-    fig.update_xaxes(title_text="Characteristics", row=2, col=2)
-    fig.update_yaxes(title_text="Confidence %", row=2, col=2)
-    
-    return fig
+    return all_characteristics_df
 
 def analyze_text_sentiment(df, text_classifier):
     """Analyze sentiment of text data"""
@@ -287,6 +225,54 @@ def analyze_text_sentiment(df, text_classifier):
     except Exception as e:
         st.error(f"Error analyzing text sentiment: {e}")
         return None
+
+def display_text_charts(final_df):
+    """Display text sentiment analysis using Streamlit native charts"""
+    
+    # Extract interest data for visualization
+    interest_data = []
+    for idx, row in final_df.iterrows():
+        interest_str = row['Interest']
+        # Parse the interest string to extract main sentiment
+        if 'interested' in interest_str.lower():
+            if 'not interested' in interest_str.lower():
+                interest_data.append('Not Interested')
+            else:
+                interest_data.append('Interested')
+        elif 'follow-up' in interest_str.lower():
+            interest_data.append('Follow-up')
+        elif 'doubtful' in interest_str.lower():
+            interest_data.append('Doubtful')
+        else:
+            interest_data.append('Other')
+    
+    # Create interest distribution
+    interest_counts = pd.Series(interest_data).value_counts()
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("📊 Interest Level Distribution")
+        st.bar_chart(interest_counts)
+    
+    with col2:
+        st.subheader("📋 Interest Level Summary")
+        for category, count in interest_counts.items():
+            percentage = (count / len(interest_data)) * 100
+            st.metric(
+                label=category,
+                value=count,
+                delta=f"{percentage:.1f}%"
+            )
+    
+    # Additional analysis
+    st.subheader("📈 Campaign Analysis Overview")
+    
+    # Create summary metrics
+    total_campaigns = len(final_df)
+    st.metric("Total Campaigns Analyzed", total_campaigns)
+    
+    return interest_counts
 
 def main_app():
     """Main application interface"""
@@ -364,28 +350,10 @@ def main_app():
                                 st.write(f"**{label.capitalize()}:** {round(score*100, 1)}%")
                         
                         # Create and display charts
-                        st.subheader("📈 Detailed Analysis Charts")
-                        if PLOTLY_AVAILABLE:
-                            fig = create_audio_charts(sentiment_result, top_labels)
-                            if fig:
-                                st.plotly_chart(fig, use_container_width=True)
-                        else:
-                            st.warning("Charts not available. Please install plotly.")
-                            
-                            # Fallback: Display data in tables
-                            st.subheader("📊 Tone Analysis Results")
-                            results_df = pd.DataFrame({
-                                'Tone': [label for label, _ in top_labels[:10]],
-                                'Confidence': [f"{round(score*100, 1)}%" for _, score in top_labels[:10]]
-                            })
-                            st.dataframe(results_df)
+                        st.subheader("📈 Detailed Analysis")
+                        results_df = display_audio_charts(sentiment_result, top_labels)
                         
                         # Download results
-                        results_df = pd.DataFrame({
-                            'Characteristic': [label for label, _ in top_labels],
-                            'Confidence_Score': [f"{round(score*100, 1)}%" for _, score in top_labels]
-                        })
-                        
                         csv = results_df.to_csv(index=False)
                         st.download_button(
                             label="Download Results as CSV",
@@ -438,39 +406,8 @@ def main_app():
                             st.dataframe(final_df)
                             
                             # Create summary charts
-                            st.subheader("📈 Summary Charts")
-                            
-                            # Extract interest data for visualization
-                            interest_data = []
-                            for idx, row in final_df.iterrows():
-                                interest_str = row['Interest']
-                                # Parse the interest string to extract main sentiment
-                                if 'interested' in interest_str.lower():
-                                    if 'not interested' in interest_str.lower():
-                                        interest_data.append('Not Interested')
-                                    else:
-                                        interest_data.append('Interested')
-                                elif 'follow-up' in interest_str.lower():
-                                    interest_data.append('Follow-up')
-                                elif 'doubtful' in interest_str.lower():
-                                    interest_data.append('Doubtful')
-                                else:
-                                    interest_data.append('Other')
-                            
-                            # Create interest distribution chart
-                            if PLOTLY_AVAILABLE:
-                                interest_counts = pd.Series(interest_data).value_counts()
-                                fig_interest = px.pie(
-                                    values=interest_counts.values,
-                                    names=interest_counts.index,
-                                    title="Interest Level Distribution"
-                                )
-                                st.plotly_chart(fig_interest, use_container_width=True)
-                            else:
-                                # Fallback: Display as table
-                                interest_counts = pd.Series(interest_data).value_counts()
-                                st.subheader("Interest Level Distribution")
-                                st.dataframe(interest_counts.to_frame('Count'))
+                            st.subheader("📈 Summary Analysis")
+                            interest_counts = display_text_charts(final_df)
                             
                             # Download results
                             csv = final_df.to_csv(index=False)
@@ -495,19 +432,18 @@ def main_app():
         - **Speech-to-Text:** Uses OpenAI's Whisper model for accurate transcription
         - **Sentiment Analysis:** 1-5 star rating system
         - **Tone Detection:** Identifies emotional characteristics (polite, rude, friendly, etc.)
-        - **Visual Analytics:** Interactive charts and gauges
+        - **Visual Analytics:** Native Streamlit charts and metrics
         
         ## 📊 Text Analysis Features
         - **Campaign Analysis:** Groups feedback by campaign/ad set
         - **Multi-category Classification:** Interest, Attitude, Behavior, Engagement
         - **Batch Processing:** Handles CSV and Excel files
-        - **Summary Visualizations:** Distribution charts
+        - **Summary Visualizations:** Distribution charts and metrics
         
         ## 🛠️ Technical Stack
-        - **Streamlit:** Web application framework
+        - **Streamlit:** Web application framework with native charting
         - **Whisper:** Audio transcription
         - **Transformers:** Sentiment analysis models
-        - **Plotly:** Interactive visualizations
         - **Pandas:** Data processing
         
         ## 📝 Supported Formats
@@ -518,6 +454,12 @@ def main_app():
         - Secure login system
         - Session management
         - No data persistence
+        
+        ## 📊 Visualization Features
+        - Interactive bar charts
+        - Progress indicators
+        - Metric displays
+        - Data tables
         """)
 
 def main():
