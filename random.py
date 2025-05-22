@@ -6,21 +6,14 @@ import numpy as np
 USERNAME = "media@first economy"
 PASSWORD = "Pixel_098"
 
-# --- Function to Check Login ---
+# --- Login Validation Function ---
 def login(user, pwd):
     return user == USERNAME and pwd == PASSWORD
 
-# --- Function to Generate Random Dataset ---
-def generate_random_dataset(rows=50, cols=4):
-    data = np.random.randn(rows, cols)
-    columns = [f"Feature_{i+1}" for i in range(cols)]
-    df = pd.DataFrame(data, columns=columns)
-    return df
+# --- Streamlit App Setup ---
+st.set_page_config(page_title="CSV Visualizer", layout="centered")
 
-# --- Streamlit App ---
-st.set_page_config(page_title="Login & Data Viewer", layout="centered")
-
-# Session state to track login
+# Initialize session state for login
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
@@ -37,21 +30,31 @@ if not st.session_state.logged_in:
         else:
             st.error("Invalid username or password.")
 
-# --- Main App after Login ---
+# --- Main App After Login ---
 if st.session_state.logged_in:
-    st.title("📊 Random Dataset Viewer")
+    st.title("📈 CSV File Visualizer")
 
-    # Generate random dataset
-    df = generate_random_dataset()
+    uploaded_file = st.file_uploader("Upload a CSV file", type=["csv"])
 
-    st.subheader("Sample Data")
-    st.dataframe(df.head())
+    if uploaded_file is not None:
+        try:
+            df = pd.read_csv(uploaded_file)
 
-    st.subheader("Line Chart")
-    st.line_chart(df)
+            st.subheader("Sample Data")
+            st.dataframe(df.head())
 
-    st.subheader("Bar Chart")
-    st.bar_chart(df)
+            numeric_df = df.select_dtypes(include=[np.number])
+            if numeric_df.empty:
+                st.warning("No numeric columns found for visualization.")
+            else:
+                st.subheader("Line Chart")
+                st.line_chart(numeric_df)
 
-    st.subheader("Area Chart")
-    st.area_chart(df)
+                st.subheader("Bar Chart")
+                st.bar_chart(numeric_df)
+
+                st.subheader("Area Chart")
+                st.area_chart(numeric_df)
+        except Exception as e:
+            st.error(f"Error reading file: {e}")
+
