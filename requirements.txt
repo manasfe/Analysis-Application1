@@ -1,6 +1,6 @@
-streamlit
-git+https://github.com/openai/whisper.git
-torch
-torchaudio
-textblob
-pydub
+streamlit>=1.28.0
+SpeechRecognition>=3.10.0
+pydub>=0.25.1
+textblob>=0.17.1
+pandas>=1.5.0
+pyaudio>=0.2.11
