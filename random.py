@@ -8,7 +8,6 @@ from textblob import TextBlob
 import pandas as pd
 import re
 from collections import Counter
-import numpy as np
 
 # Set page config
 st.set_page_config(
@@ -89,35 +88,80 @@ def transcribe_audio(audio_file_path):
     except Exception as e:
         return "", f"Error processing audio file: {str(e)}"
 
-def create_summary(text, max_sentences=4):
-    """Create a concise summary of the transcript in 4-5 lines"""
+def create_summary(text, max_lines=4):
+    """Create a concise and meaningful summary of the transcript"""
     if not text.strip():
         return "No content available for summary."
     
-    # Split text into sentences
-    sentences = re.split(r'[.!?]+', text)
-    sentences = [s.strip() for s in sentences if s.strip()]
+    # Clean and prepare text
+    text = text.strip()
     
-    if len(sentences) <= max_sentences:
+    # If text is already short, return as is
+    if len(text.split()) <= 50:
         return text
     
-    # Simple extractive summarization based on sentence length and keyword frequency
-    words = text.lower().split()
+    # Split into sentences more intelligently
+    sentences = re.split(r'[.!?]+', text)
+    sentences = [s.strip() for s in sentences if s.strip() and len(s.split()) > 3]
+    
+    if len(sentences) <= max_lines:
+        return '. '.join(sentences) + '.'
+    
+    # Improved sentence scoring algorithm
+    words = [word.lower() for word in text.split() if len(word) > 2]
     word_freq = Counter(words)
     
-    # Score sentences based on word frequency
+    # Remove very common words for better scoring
+    common_words = {'the', 'and', 'that', 'this', 'with', 'for', 'are', 'was', 'were', 'been', 'have', 'has', 'had', 'will', 'would', 'could', 'should'}
+    filtered_word_freq = {word: freq for word, freq in word_freq.items() if word not in common_words}
+    
     sentence_scores = {}
     for i, sentence in enumerate(sentences):
-        sentence_words = sentence.lower().split()
-        score = sum(word_freq[word] for word in sentence_words if word in word_freq)
-        sentence_scores[i] = score / len(sentence_words) if sentence_words else 0
+        sentence_words = [word.lower() for word in sentence.split() if len(word) > 2]
+        
+        # Score based on important word frequency
+        freq_score = sum(filtered_word_freq.get(word, 0) for word in sentence_words)
+        
+        # Bonus for sentences with numbers, names (capitalized words), or key phrases
+        bonus_score = 0
+        if any(char.isdigit() for char in sentence):
+            bonus_score += 2
+        if any(word[0].isupper() for word in sentence.split()[1:]):  # Proper nouns
+            bonus_score += 1
+        if any(phrase in sentence.lower() for phrase in ['important', 'key', 'main', 'significant', 'problem', 'solution', 'result']):
+            bonus_score += 3
+        
+        # Position bonus (first and last sentences often important)
+        position_bonus = 0
+        if i == 0:  # First sentence
+            position_bonus = 2
+        elif i == len(sentences) - 1:  # Last sentence
+            position_bonus = 1
+        
+        # Length penalty for very short or very long sentences
+        length_penalty = 0
+        sentence_length = len(sentence_words)
+        if sentence_length < 5:
+            length_penalty = -2
+        elif sentence_length > 30:
+            length_penalty = -1
+        
+        total_score = freq_score + bonus_score + position_bonus + length_penalty
+        sentence_scores[i] = total_score / max(len(sentence_words), 1)
     
     # Select top sentences
-    top_sentences = sorted(sentence_scores.items(), key=lambda x: x[1], reverse=True)[:max_sentences]
+    top_sentences = sorted(sentence_scores.items(), key=lambda x: x[1], reverse=True)[:max_lines]
     top_sentences = sorted([idx for idx, score in top_sentences])
     
-    summary = '. '.join([sentences[i] for i in top_sentences if i < len(sentences)])
-    return summary + '.' if summary and not summary.endswith('.') else summary
+    # Create summary maintaining original order
+    summary_sentences = [sentences[i] for i in top_sentences if i < len(sentences)]
+    summary = '. '.join(summary_sentences)
+    
+    # Ensure proper ending
+    if summary and not summary.endswith('.'):
+        summary += '.'
+    
+    return summary
 
 def analyze_emotional_keywords(text):
     """Analyze emotional keywords in the text"""
@@ -149,100 +193,129 @@ def analyze_emotional_keywords(text):
 
 def analyze_linguistic_features(text):
     """Analyze linguistic features of the text"""
-    blob = TextBlob(text)
+    try:
+        blob = TextBlob(text)
+        
+        # Basic statistics
+        word_count = len(text.split())
+        sentence_count = len(blob.sentences)
+        avg_sentence_length = word_count / sentence_count if sentence_count > 0 else 0
+        
+        # Punctuation analysis
+        exclamation_count = text.count('!')
+        question_count = text.count('?')
+        
+        # Uppercase analysis (indicating emphasis/shouting)
+        uppercase_ratio = sum(1 for c in text if c.isupper()) / len(text) if text else 0
+        
+        return {
+            'word_count': word_count,
+            'sentence_count': sentence_count,
+            'avg_sentence_length': round(avg_sentence_length, 1),
+            'exclamation_marks': exclamation_count,
+            'question_marks': question_count,
+            'uppercase_ratio': round(uppercase_ratio, 3)
+        }
+    except Exception as e:
+        st.error(f"Error in linguistic analysis: {str(e)}")
+        return {
+            'word_count': 0,
+            'sentence_count': 0,
+            'avg_sentence_length': 0,
+            'exclamation_marks': 0,
+            'question_marks': 0,
+            'uppercase_ratio': 0
+        }
+
+def calculate_variance(values):
+    """Calculate variance without numpy"""
+    if not values or len(values) < 2:
+        return 0
     
-    # Basic statistics
-    word_count = len(text.split())
-    sentence_count = len(blob.sentences)
-    avg_sentence_length = word_count / sentence_count if sentence_count > 0 else 0
-    
-    # Punctuation analysis
-    exclamation_count = text.count('!')
-    question_count = text.count('?')
-    
-    # Uppercase analysis (indicating emphasis/shouting)
-    uppercase_ratio = sum(1 for c in text if c.isupper()) / len(text) if text else 0
-    
-    return {
-        'word_count': word_count,
-        'sentence_count': sentence_count,
-        'avg_sentence_length': avg_sentence_length,
-        'exclamation_marks': exclamation_count,
-        'question_marks': question_count,
-        'uppercase_ratio': uppercase_ratio
-    }
+    mean = sum(values) / len(values)
+    variance = sum((x - mean) ** 2 for x in values) / len(values)
+    return variance
 
 def analyze_sentiment_detailed(text):
     """Comprehensive sentiment analysis of the text"""
     if not text.strip():
         return None
     
-    blob = TextBlob(text)
-    polarity = blob.sentiment.polarity
-    subjectivity = blob.sentiment.subjectivity
+    try:
+        blob = TextBlob(text)
+        polarity = blob.sentiment.polarity
+        subjectivity = blob.sentiment.subjectivity
+        
+        # Basic sentiment classification
+        if polarity > 0.3:
+            sentiment = "Strongly Positive"
+            sentiment_emoji = "😊"
+        elif polarity > 0.1:
+            sentiment = "Moderately Positive"
+            sentiment_emoji = "🙂"
+        elif polarity > -0.1:
+            sentiment = "Neutral"
+            sentiment_emoji = "😐"
+        elif polarity > -0.3:
+            sentiment = "Moderately Negative"
+            sentiment_emoji = "😕"
+        else:
+            sentiment = "Strongly Negative"
+            sentiment_emoji = "😞"
+        
+        # Confidence level
+        confidence = abs(polarity)
+        if confidence > 0.7:
+            confidence_level = "Very High"
+        elif confidence > 0.5:
+            confidence_level = "High"
+        elif confidence > 0.3:
+            confidence_level = "Moderate"
+        else:
+            confidence_level = "Low"
+        
+        # Subjectivity classification
+        if subjectivity > 0.7:
+            subjectivity_level = "Highly Subjective"
+        elif subjectivity > 0.5:
+            subjectivity_level = "Moderately Subjective"
+        elif subjectivity > 0.3:
+            subjectivity_level = "Slightly Subjective"
+        else:
+            subjectivity_level = "Mostly Objective"
+        
+        # Additional analyses
+        emotional_keywords = analyze_emotional_keywords(text)
+        linguistic_features = analyze_linguistic_features(text)
+        
+        # Sentence-level sentiment analysis
+        sentence_sentiments = []
+        try:
+            for sentence in blob.sentences:
+                sent_polarity = sentence.sentiment.polarity
+                sentence_sentiments.append(sent_polarity)
+        except Exception as e:
+            st.warning(f"Could not analyze individual sentences: {str(e)}")
+            sentence_sentiments = [polarity]  # Use overall polarity as fallback
+        
+        sentiment_variance = calculate_variance(sentence_sentiments)
+        
+        return {
+            "overall_sentiment": sentiment,
+            "sentiment_emoji": sentiment_emoji,
+            "polarity": round(polarity, 3),
+            "subjectivity": round(subjectivity, 3),
+            "confidence_level": confidence_level,
+            "subjectivity_level": subjectivity_level,
+            "emotional_keywords": emotional_keywords,
+            "linguistic_features": linguistic_features,
+            "sentence_sentiments": sentence_sentiments,
+            "sentiment_variance": round(sentiment_variance, 3)
+        }
     
-    # Basic sentiment classification
-    if polarity > 0.3:
-        sentiment = "Strongly Positive"
-        sentiment_emoji = "😊"
-    elif polarity > 0.1:
-        sentiment = "Moderately Positive"
-        sentiment_emoji = "🙂"
-    elif polarity > -0.1:
-        sentiment = "Neutral"
-        sentiment_emoji = "😐"
-    elif polarity > -0.3:
-        sentiment = "Moderately Negative"
-        sentiment_emoji = "😕"
-    else:
-        sentiment = "Strongly Negative"
-        sentiment_emoji = "😞"
-    
-    # Confidence level
-    confidence = abs(polarity)
-    if confidence > 0.7:
-        confidence_level = "Very High"
-    elif confidence > 0.5:
-        confidence_level = "High"
-    elif confidence > 0.3:
-        confidence_level = "Moderate"
-    else:
-        confidence_level = "Low"
-    
-    # Subjectivity classification
-    if subjectivity > 0.7:
-        subjectivity_level = "Highly Subjective"
-    elif subjectivity > 0.5:
-        subjectivity_level = "Moderately Subjective"
-    elif subjectivity > 0.3:
-        subjectivity_level = "Slightly Subjective"
-    else:
-        subjectivity_level = "Mostly Objective"
-    
-    # Additional analyses
-    emotional_keywords = analyze_emotional_keywords(text)
-    linguistic_features = analyze_linguistic_features(text)
-    
-    # Sentence-level sentiment analysis
-    sentence_sentiments = []
-    for sentence in blob.sentences:
-        sent_polarity = sentence.sentiment.polarity
-        sentence_sentiments.append(sent_polarity)
-    
-    sentiment_variance = np.var(sentence_sentiments) if sentence_sentiments else 0
-    
-    return {
-        "overall_sentiment": sentiment,
-        "sentiment_emoji": sentiment_emoji,
-        "polarity": polarity,
-        "subjectivity": subjectivity,
-        "confidence_level": confidence_level,
-        "subjectivity_level": subjectivity_level,
-        "emotional_keywords": emotional_keywords,
-        "linguistic_features": linguistic_features,
-        "sentence_sentiments": sentence_sentiments,
-        "sentiment_variance": sentiment_variance
-    }
+    except Exception as e:
+        st.error(f"Error in sentiment analysis: {str(e)}")
+        return None
 
 def main_app():
     """Main application after login"""
@@ -294,7 +367,7 @@ def main_app():
                         st.markdown("## 📝 Transcription Summary")
                         
                         # Create and display summary
-                        summary = create_summary(transcript, max_sentences=4)
+                        summary = create_summary(transcript, max_lines=4)
                         st.subheader("Summary (4-5 lines):")
                         st.write(summary)
                         
@@ -382,7 +455,7 @@ def main_app():
                                 st.metric("Sentences", ling['sentence_count'])
                             
                             with col2:
-                                st.metric("Avg Sentence Length", f"{ling['avg_sentence_length']:.1f} words")
+                                st.metric("Avg Sentence Length", f"{ling['avg_sentence_length']} words")
                                 st.metric("Exclamation Marks", ling['exclamation_marks'])
                             
                             with col3:
@@ -421,25 +494,28 @@ def main_app():
                             if len(sentiment_result['sentence_sentiments']) > 1:
                                 st.markdown("#### 📈 Sentiment Progression Throughout Speech")
                                 
-                                sentiment_df = pd.DataFrame({
-                                    'Sentence': range(1, len(sentiment_result['sentence_sentiments']) + 1),
-                                    'Sentiment Score': sentiment_result['sentence_sentiments']
-                                })
-                                
-                                st.line_chart(sentiment_df.set_index('Sentence'))
-                                
-                                # Sentiment trend analysis
-                                sentiments = sentiment_result['sentence_sentiments']
-                                if len(sentiments) >= 3:
-                                    trend_start = np.mean(sentiments[:len(sentiments)//3])
-                                    trend_end = np.mean(sentiments[-len(sentiments)//3:])
+                                try:
+                                    sentiment_df = pd.DataFrame({
+                                        'Sentence': range(1, len(sentiment_result['sentence_sentiments']) + 1),
+                                        'Sentiment Score': sentiment_result['sentence_sentiments']
+                                    })
                                     
-                                    if trend_end > trend_start + 0.1:
-                                        st.write("📈 **Positive trend** - Sentiment becomes more positive over time")
-                                    elif trend_end < trend_start - 0.1:
-                                        st.write("📉 **Negative trend** - Sentiment becomes more negative over time")
-                                    else:
-                                        st.write("➡️ **Stable sentiment** - Consistent emotional tone throughout")
+                                    st.line_chart(sentiment_df.set_index('Sentence'))
+                                    
+                                    # Sentiment trend analysis
+                                    sentiments = sentiment_result['sentence_sentiments']
+                                    if len(sentiments) >= 3:
+                                        trend_start = sum(sentiments[:len(sentiments)//3]) / len(sentiments[:len(sentiments)//3])
+                                        trend_end = sum(sentiments[-len(sentiments)//3:]) / len(sentiments[-len(sentiments)//3:])
+                                        
+                                        if trend_end > trend_start + 0.1:
+                                            st.write("📈 **Positive trend** - Sentiment becomes more positive over time")
+                                        elif trend_end < trend_start - 0.1:
+                                            st.write("📉 **Negative trend** - Sentiment becomes more negative over time")
+                                        else:
+                                            st.write("➡️ **Stable sentiment** - Consistent emotional tone throughout")
+                                except Exception as e:
+                                    st.warning(f"Could not display sentiment progression chart: {str(e)}")
                             
                             # Overall Assessment
                             st.markdown("#### 🎯 Overall Assessment")
