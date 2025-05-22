@@ -4,20 +4,46 @@ import numpy as np
 import io
 import tempfile
 import os
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+
+# Try importing plotly with fallback
+try:
+    import plotly.express as px
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+    PLOTLY_AVAILABLE = True
+except ImportError as e:
+    st.error("Plotly not available. Installing plotly...")
+    import subprocess
+    import sys
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "plotly"])
+    try:
+        import plotly.express as px
+        import plotly.graph_objects as go
+        from plotly.subplots import make_subplots
+        PLOTLY_AVAILABLE = True
+        st.success("Plotly installed successfully!")
+    except ImportError:
+        st.error("Failed to install plotly. Charts will not be available.")
+        PLOTLY_AVAILABLE = False
 
 # Import required libraries for audio and text processing
+WHISPER_AVAILABLE = False
+TRANSFORMERS_AVAILABLE = False
+
 try:
     import whisper
     import torch
     import torchaudio
     import librosa
-    from transformers import pipeline
+    WHISPER_AVAILABLE = True
 except ImportError as e:
-    st.error(f"Required libraries not installed: {e}")
-    st.stop()
+    st.warning(f"Audio processing libraries not available: {e}")
+
+try:
+    from transformers import pipeline
+    TRANSFORMERS_AVAILABLE = True
+except ImportError as e:
+    st.warning(f"Transformers library not available: {e}")
 
 # Set page config
 st.set_page_config(
@@ -62,11 +88,18 @@ def login_page():
 @st.cache_resource
 def load_whisper_model():
     """Load Whisper model with caching"""
+    if not WHISPER_AVAILABLE:
+        st.error("Whisper not available. Please install required audio libraries.")
+        return None
     return whisper.load_model("small")
 
 @st.cache_resource
 def load_sentiment_models():
     """Load sentiment analysis models with caching"""
+    if not TRANSFORMERS_AVAILABLE:
+        st.error("Transformers not available. Please install transformers library.")
+        return None, None, None
+    
     try:
         sentiment_pipe = pipeline("sentiment-analysis", 
                                 model="nlptown/bert-base-multilingual-uncased-sentiment")
@@ -124,6 +157,10 @@ def analyze_audio_sentiment(transcription, sentiment_pipe, classifier):
 
 def create_audio_charts(sentiment_result, top_labels):
     """Create charts for audio sentiment analysis"""
+    
+    if not PLOTLY_AVAILABLE:
+        st.warning("Charts not available. Plotly not installed.")
+        return None
     
     # Create subplots
     fig = make_subplots(
@@ -268,6 +305,10 @@ def main_app():
     
     # Load models
     with st.spinner("Loading AI models..."):
+        if not TRANSFORMERS_AVAILABLE:
+            st.error("Transformers library not available. Please check your requirements.txt and redeploy.")
+            st.stop()
+            
         sentiment_pipe, classifier, text_classifier = load_sentiment_models()
         
         if None in [sentiment_pipe, classifier, text_classifier]:
@@ -284,6 +325,11 @@ def main_app():
         
         if uploaded_audio is not None:
             st.audio(uploaded_audio, format='audio/wav')
+            
+            if not WHISPER_AVAILABLE:
+                st.error("Audio analysis not available. Whisper and related libraries not installed.")
+                st.info("Required libraries: whisper, torch, torchaudio, librosa")
+                return
             
             if st.button("Analyze Audio", type="primary"):
                 with st.spinner("Loading Whisper model..."):
@@ -319,8 +365,20 @@ def main_app():
                         
                         # Create and display charts
                         st.subheader("📈 Detailed Analysis Charts")
-                        fig = create_audio_charts(sentiment_result, top_labels)
-                        st.plotly_chart(fig, use_container_width=True)
+                        if PLOTLY_AVAILABLE:
+                            fig = create_audio_charts(sentiment_result, top_labels)
+                            if fig:
+                                st.plotly_chart(fig, use_container_width=True)
+                        else:
+                            st.warning("Charts not available. Please install plotly.")
+                            
+                            # Fallback: Display data in tables
+                            st.subheader("📊 Tone Analysis Results")
+                            results_df = pd.DataFrame({
+                                'Tone': [label for label, _ in top_labels[:10]],
+                                'Confidence': [f"{round(score*100, 1)}%" for _, score in top_labels[:10]]
+                            })
+                            st.dataframe(results_df)
                         
                         # Download results
                         results_df = pd.DataFrame({
@@ -400,13 +458,19 @@ def main_app():
                                     interest_data.append('Other')
                             
                             # Create interest distribution chart
-                            interest_counts = pd.Series(interest_data).value_counts()
-                            fig_interest = px.pie(
-                                values=interest_counts.values,
-                                names=interest_counts.index,
-                                title="Interest Level Distribution"
-                            )
-                            st.plotly_chart(fig_interest, use_container_width=True)
+                            if PLOTLY_AVAILABLE:
+                                interest_counts = pd.Series(interest_data).value_counts()
+                                fig_interest = px.pie(
+                                    values=interest_counts.values,
+                                    names=interest_counts.index,
+                                    title="Interest Level Distribution"
+                                )
+                                st.plotly_chart(fig_interest, use_container_width=True)
+                            else:
+                                # Fallback: Display as table
+                                interest_counts = pd.Series(interest_data).value_counts()
+                                st.subheader("Interest Level Distribution")
+                                st.dataframe(interest_counts.to_frame('Count'))
                             
                             # Download results
                             csv = final_df.to_csv(index=False)
