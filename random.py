@@ -140,8 +140,15 @@ def transcribe_audio_chunk(audio_file_path, recognizer, chunk_index=0):
         recognition_methods = [
             ("Google", lambda: recognizer.recognize_google(audio_data, language='en-US')),
             ("Google (alternative)", lambda: recognizer.recognize_google(audio_data, language='en-IN')),
-            ("Sphinx (offline)", lambda: recognizer.recognize_sphinx(audio_data)),
         ]
+        
+        # Add Sphinx only if pocketsphinx is available
+        try:
+            import pocketsphinx
+            recognition_methods.append(("Sphinx (offline)", lambda: recognizer.recognize_sphinx(audio_data)))
+        except ImportError:
+            # pocketsphinx not available, skip offline recognition
+            pass
         
         for method_name, method_func in recognition_methods:
             try:
