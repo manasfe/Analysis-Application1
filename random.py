@@ -9,7 +9,7 @@ import pandas as pd
 import re
 from collections import Counter
 import nltk
-nltk.download('all')
+nltk.download("all")
 import math
 
 # Download required NLTK data
@@ -551,8 +551,141 @@ def main_app():
                                 with col4:
                                     st.metric("Confidence Level", sentiment_result['confidence_level'])
                                 
-                                # Rest of the sentiment analysis remains the same...
-                                # [Include all the detailed analysis sections from the original code]
+                                # Detailed Analysis Sections
+                                st.markdown("### 🔍 Detailed Analysis")
+                                
+                                # Sentiment Interpretation
+                                col1, col2 = st.columns(2)
+                                
+                                with col1:
+                                    st.markdown("#### 📈 Sentiment Interpretation")
+                                    
+                                    polarity_desc = ""
+                                    if sentiment_result["polarity"] > 0.5:
+                                        polarity_desc = "**Very positive** - Expresses strong positive emotions"
+                                    elif sentiment_result["polarity"] > 0.1:
+                                        polarity_desc = "**Positive** - Generally favorable tone"
+                                    elif sentiment_result["polarity"] > -0.1:
+                                        polarity_desc = "**Neutral** - Balanced or factual tone"
+                                    elif sentiment_result["polarity"] > -0.5:
+                                        polarity_desc = "**Negative** - Generally unfavorable tone"
+                                    else:
+                                        polarity_desc = "**Very negative** - Expresses strong negative emotions"
+                                    
+                                    st.write(f"**Polarity ({sentiment_result['polarity']:.3f}):** {polarity_desc}")
+                                    st.write(f"**Subjectivity ({sentiment_result['subjectivity']:.3f}):** {sentiment_result['subjectivity_level']}")
+                                    
+                                    if sentiment_result['subjectivity'] > 0.5:
+                                        st.write("💭 This text contains personal opinions, emotions, or subjective statements.")
+                                    else:
+                                        st.write("📊 This text is mostly factual and objective.")
+                                
+                                with col2:
+                                    st.markdown("#### 🎭 Emotional Keywords Analysis")
+                                    emo = sentiment_result['emotional_keywords']
+                                    
+                                    st.write(f"**Positive words:** {emo['positive_words']}")
+                                    st.write(f"**Negative words:** {emo['negative_words']}")
+                                    st.write(f"**Neutral words:** {emo['neutral_words']}")
+                                    st.write(f"**Emotional density:** {emo['emotional_density']:.2%}")
+                                    
+                                    if emo['emotional_density'] > 0.1:
+                                        st.write("🔥 High emotional content detected")
+                                    elif emo['emotional_density'] > 0.05:
+                                        st.write("😊 Moderate emotional content")
+                                    else:
+                                        st.write("😐 Low emotional content")
+                                
+                                # Linguistic Features
+                                st.markdown("#### 📝 Linguistic Features")
+                                ling = sentiment_result['linguistic_features']
+                                
+                                col1, col2, col3 = st.columns(3)
+                                
+                                with col1:
+                                    st.metric("Word Count", ling['word_count'])
+                                    st.metric("Sentences", ling['sentence_count'])
+                                
+                                with col2:
+                                    st.metric("Avg Sentence Length", f"{ling['avg_sentence_length']} words")
+                                    st.metric("Exclamation Marks", ling['exclamation_marks'])
+                                
+                                with col3:
+                                    st.metric("Question Marks", ling['question_marks'])
+                                    st.metric("Uppercase Ratio", f"{ling['uppercase_ratio']:.2%}")
+                                
+                                # Speaking Style Analysis
+                                st.markdown("#### 🗣️ Speaking Style Analysis")
+                                
+                                style_notes = []
+                                
+                                if ling['exclamation_marks'] > 2:
+                                    style_notes.append("**Emphatic speaker** - Uses exclamation marks frequently")
+                                
+                                if ling['question_marks'] > 2:
+                                    style_notes.append("**Inquisitive speaker** - Asks many questions")
+                                
+                                if ling['avg_sentence_length'] > 20:
+                                    style_notes.append("**Complex speaker** - Uses long, detailed sentences")
+                                elif ling['avg_sentence_length'] < 8:
+                                    style_notes.append("**Concise speaker** - Uses short, direct sentences")
+                                
+                                if ling['uppercase_ratio'] > 0.05:
+                                    style_notes.append("**Animated speaker** - Uses emphasis through capitalization")
+                                
+                                if sentiment_result['sentiment_variance'] > 0.2:
+                                    style_notes.append("**Variable emotions** - Sentiment changes throughout the speech")
+                                
+                                if style_notes:
+                                    for note in style_notes:
+                                        st.write(f"• {note}")
+                                else:
+                                    st.write("• **Balanced speaker** - Neutral speaking style")
+                                
+                                # Sentiment Progression
+                                if len(sentiment_result['sentence_sentiments']) > 1:
+                                    st.markdown("#### 📈 Sentiment Progression Throughout Speech")
+                                    
+                                    try:
+                                        sentiment_df = pd.DataFrame({
+                                            'Sentence': range(1, len(sentiment_result['sentence_sentiments']) + 1),
+                                            'Sentiment Score': sentiment_result['sentence_sentiments']
+                                        })
+                                        
+                                        st.line_chart(sentiment_df.set_index('Sentence'))
+                                        
+                                        # Sentiment trend analysis
+                                        sentiments = sentiment_result['sentence_sentiments']
+                                        if len(sentiments) >= 3:
+                                            trend_start = sum(sentiments[:len(sentiments)//3]) / len(sentiments[:len(sentiments)//3])
+                                            trend_end = sum(sentiments[-len(sentiments)//3:]) / len(sentiments[-len(sentiments)//3:])
+                                            
+                                            if trend_end > trend_start + 0.1:
+                                                st.write("📈 **Positive trend** - Sentiment becomes more positive over time")
+                                            elif trend_end < trend_start - 0.1:
+                                                st.write("📉 **Negative trend** - Sentiment becomes more negative over time")
+                                            else:
+                                                st.write("➡️ **Stable sentiment** - Consistent emotional tone throughout")
+                                    except Exception as e:
+                                        st.warning(f"Could not display sentiment progression chart: {str(e)}")
+                                
+                                # Overall Assessment
+                                st.markdown("#### 🎯 Overall Assessment")
+                                
+                                assessment = f"""
+                                **Communication Style:** {sentiment_result['overall_sentiment']} tone with {sentiment_result['confidence_level'].lower()} confidence.
+                                
+                                **Emotional Pattern:** The speaker demonstrates {sentiment_result['subjectivity_level'].lower()} expression with 
+                                {emo['emotional_density']:.1%} emotional word density.
+                                
+                                **Key Insights:**
+                                • Primary sentiment: {sentiment_result['overall_sentiment']} ({sentiment_result['polarity']:.3f})
+                                • Objectivity level: {sentiment_result['subjectivity_level']}
+                                • Emotional intensity: {sentiment_result['confidence_level']}
+                                • Communication complexity: {"High" if ling['avg_sentence_length'] > 15 else "Moderate" if ling['avg_sentence_length'] > 10 else "Simple"}
+                                """
+                                
+                                st.markdown(assessment)
                             else:
                                 st.warning("Could not perform detailed sentiment analysis.")
                         else:
