@@ -273,80 +273,7 @@ def post_process_transcript(text):
     
     return ''.join(processed_sentences)
 
-def create_summary(text, max_lines=4):
-    """Create a concise and meaningful summary of the transcript"""
-    if not text.strip():
-        return "No content available for summary."
-    
-    # Clean and prepare text
-    text = text.strip()
-    
-    # If text is already short, return as is
-    if len(text.split()) <= 50:
-        return text
-    
-    # Split into sentences more intelligently
-    sentences = re.split(r'[.!?]+', text)
-    sentences = [s.strip() for s in sentences if s.strip() and len(s.split()) > 3]
-    
-    if len(sentences) <= max_lines:
-        return '. '.join(sentences) + '.'
-    
-    # Improved sentence scoring algorithm
-    words = [word.lower() for word in text.split() if len(word) > 2]
-    word_freq = Counter(words)
-    
-    # Remove very common words for better scoring
-    common_words = {'the', 'and', 'that', 'this', 'with', 'for', 'are', 'was', 'were', 'been', 'have', 'has', 'had', 'will', 'would', 'could', 'should'}
-    filtered_word_freq = {word: freq for word, freq in word_freq.items() if word not in common_words}
-    
-    sentence_scores = {}
-    for i, sentence in enumerate(sentences):
-        sentence_words = [word.lower() for word in sentence.split() if len(word) > 2]
-        
-        # Score based on important word frequency
-        freq_score = sum(filtered_word_freq.get(word, 0) for word in sentence_words)
-        
-        # Bonus for sentences with numbers, names (capitalized words), or key phrases
-        bonus_score = 0
-        if any(char.isdigit() for char in sentence):
-            bonus_score += 2
-        if any(word[0].isupper() for word in sentence.split()[1:]):  # Proper nouns
-            bonus_score += 1
-        if any(phrase in sentence.lower() for phrase in ['important', 'key', 'main', 'significant', 'problem', 'solution', 'result']):
-            bonus_score += 3
-        
-        # Position bonus (first and last sentences often important)
-        position_bonus = 0
-        if i == 0:  # First sentence
-            position_bonus = 2
-        elif i == len(sentences) - 1:  # Last sentence
-            position_bonus = 1
-        
-        # Length penalty for very short or very long sentences
-        length_penalty = 0
-        sentence_length = len(sentence_words)
-        if sentence_length < 5:
-            length_penalty = -2
-        elif sentence_length > 30:
-            length_penalty = -1
-        
-        total_score = freq_score + bonus_score + position_bonus + length_penalty
-        sentence_scores[i] = total_score / max(len(sentence_words), 1)
-    
-    # Select top sentences
-    top_sentences = sorted(sentence_scores.items(), key=lambda x: x[1], reverse=True)[:max_lines]
-    top_sentences = sorted([idx for idx, score in top_sentences])
-    
-    # Create summary maintaining original order
-    summary_sentences = [sentences[i] for i in top_sentences if i < len(sentences)]
-    summary = '. '.join(summary_sentences)
-    
-    # Ensure proper ending
-    if summary and not summary.endswith('.'):
-        summary += '.'
-    
-    return summary
+
 
 def analyze_emotional_keywords(text):
     """Analyze emotional keywords in the text"""
@@ -572,30 +499,32 @@ def main_app():
                         word_count = len(transcript.split())
                         st.info(f"📊 Total words transcribed: **{word_count}**")
                         
-                        st.markdown("## 📝 Transcription Results")
+                        st.markdown("## 📝 Complete Transcription")
                         
-                        # Create and display summary
-                        summary = create_summary(transcript, max_lines=4)
-                        st.subheader("📋 Summary (Key Points):")
-                        st.write(summary)
+                        # Display full transcript directly (not in expander)
+                        st.markdown("### Full Audio Transcript:")
                         
-                        # Full transcript with better formatting
-                        with st.expander("📄 View Full Transcript", expanded=False):
-                            st.markdown("### Complete Transcription:")
-                            st.write(transcript)
-                            
-                            # Additional transcript info
-                            st.markdown("---")
-                            st.markdown("**Transcript Statistics:**")
-                            col1, col2, col3 = st.columns(3)
-                            with col1:
-                                st.metric("Total Words", word_count)
-                            with col2:
-                                sentences = len(re.split(r'[.!?]+', transcript))
-                                st.metric("Estimated Sentences", max(1, sentences - 1))
-                            with col3:
-                                avg_words = word_count / max(1, sentences - 1)
-                                st.metric("Avg Words/Sentence", f"{avg_words:.1f}")
+                        # Format transcript with better readability
+                        formatted_transcript = transcript.replace('. ', '.\n\n')  # Add line breaks after sentences
+                        st.markdown(f"**{formatted_transcript}**")
+                        
+                        # Additional transcript info
+                        st.markdown("---")
+                        st.markdown("**Transcript Statistics:**")
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Total Words", word_count)
+                        with col2:
+                            sentences = len(re.split(r'[.!?]+', transcript))
+                            st.metric("Estimated Sentences", max(1, sentences - 1))
+                        with col3:
+                            avg_words = word_count / max(1, sentences - 1)
+                            st.metric("Avg Words/Sentence", f"{avg_words:.1f}")
+                        
+                        # Option to copy transcript
+                        st.markdown("---")
+                        st.markdown("**Copy Transcript:**")
+                        st.text_area("Copy the text below:", transcript, height=200)
                         
                         # Detailed sentiment analysis
                         if word_count >= 3:  # Only analyze if we have sufficient text
