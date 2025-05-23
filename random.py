@@ -11,6 +11,8 @@ from collections import Counter
 import nltk
 nltk.download('all')
 import numpy as np
+import plotly.graph_objects as go
+import plotly.express as px
 
 # Download required NLTK data
 @st.cache_resource
@@ -308,8 +310,6 @@ def post_process_transcript(text):
     
     return result
 
-
-
 def analyze_emotional_keywords(text):
     """Analyze emotional keywords in the text"""
     positive_words = ['good', 'great', 'excellent', 'amazing', 'wonderful', 'fantastic', 'love', 'like', 
@@ -337,8 +337,6 @@ def analyze_emotional_keywords(text):
         'total_emotional_words': total_emotional,
         'emotional_density': total_emotional / len(words) if words else 0
     }
-
-
 
 def calculate_variance(values):
     """Calculate variance without numpy"""
@@ -429,6 +427,343 @@ def analyze_sentiment_detailed(text):
         st.info("Please ensure all required packages are installed and NLTK data is downloaded.")
         return None
 
+def display_sentiment_analysis(sentiment_result, transcript):
+    """Display comprehensive sentiment analysis with improved visual layout"""
+    st.markdown("---")
+    st.markdown("# 📊 Comprehensive Sentiment Analysis")
+    st.markdown("")
+    
+    # Header metrics in a clean layout
+    st.markdown("## 🎯 Key Sentiment Indicators")
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric(
+            label="Overall Sentiment", 
+            value=sentiment_result['overall_sentiment'],
+            help="Primary emotional tone of the speech"
+        )
+        st.markdown(f"<div style='text-align: center; font-size: 2em;'>{sentiment_result['sentiment_emoji']}</div>", 
+                   unsafe_allow_html=True)
+    
+    with col2:
+        st.metric(
+            label="Polarity Score", 
+            value=f"{sentiment_result['polarity']:.3f}",
+            delta=f"Range: -1.0 to +1.0",
+            help="Measures positive vs negative sentiment"
+        )
+    
+    with col3:
+        st.metric(
+            label="Subjectivity Score", 
+            value=f"{sentiment_result['subjectivity']:.3f}",
+            delta=f"Range: 0.0 to 1.0",
+            help="Measures objective vs subjective content"
+        )
+    
+    with col4:
+        st.metric(
+            label="Confidence Level", 
+            value=sentiment_result['confidence_level'],
+            help="How confident we are in the sentiment assessment"
+        )
+    
+    st.markdown("---")
+    
+    # Visual Analysis Section
+    st.markdown("## 📈 Visual Sentiment Analysis")
+    
+    # Row 1: Polarity Gauge and Emotional Distribution
+    col1, col2 = st.columns(2, gap="large")
+    
+    with col1:
+        st.markdown("### 🎯 Sentiment Polarity Gauge")
+        
+        # Create polarity gauge
+        fig = go.Figure(go.Indicator(
+            mode="gauge+number+delta",
+            value=sentiment_result['polarity'],
+            domain={'x': [0, 1], 'y': [0, 1]},
+            title={'text': "Sentiment Polarity", 'font': {'size': 16}},
+            delta={'reference': 0, 'position': "top"},
+            gauge={
+                'axis': {'range': [-1, 1], 'tickwidth': 1, 'tickcolor': "darkblue"},
+                'bar': {'color': "darkblue"},
+                'steps': [
+                    {'range': [-1, -0.5], 'color': "#ff4444"},
+                    {'range': [-0.5, -0.1], 'color': "#ffaa44"},
+                    {'range': [-0.1, 0.1], 'color': "#ffff44"},
+                    {'range': [0.1, 0.5], 'color': "#88ff44"},
+                    {'range': [0.5, 1], 'color': "#44ff44"}
+                ],
+                'threshold': {
+                    'line': {'color': "red", 'width': 4},
+                    'thickness': 0.75,
+                    'value': 0.9
+                }
+            }
+        ))
+        fig.update_layout(height=350, margin=dict(l=20, r=20, t=40, b=20))
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        st.markdown("### 🎭 Emotional Word Distribution")
+        
+        emo = sentiment_result['emotional_keywords']
+        labels = ['Positive', 'Negative', 'Neutral']
+        values = [emo['positive_words'], emo['negative_words'], emo['neutral_words']]
+        colors = ['#2E8B57', '#DC143C', '#808080']
+        
+        fig = go.Figure(data=[go.Pie(
+            labels=labels, 
+            values=values,
+            marker_colors=colors,
+            hole=0.4,
+            textposition='inside', 
+            textinfo='percent+label',
+            hovertemplate='<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>'
+        )])
+        
+        fig.update_layout(
+            title={
+                'text': "Distribution of Emotional Words",
+                'x': 0.5,
+                'font': {'size': 16}
+            },
+            height=350,
+            showlegend=True,
+            margin=dict(l=20, r=20, t=40, b=20)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    
+    st.markdown("---")
+    
+    # Row 2: Subjectivity Analysis
+    st.markdown("## 🔍 Communication Style Analysis")
+    
+    col1, col2 = st.columns(2, gap="large")
+    
+    with col1:
+        st.markdown("### 📊 Subjectivity Level")
+        
+        # Subjectivity gauge
+        fig = go.Figure(go.Indicator(
+            mode="gauge+number",
+            value=sentiment_result['subjectivity'],
+            domain={'x': [0, 1], 'y': [0, 1]},
+            title={'text': "Objective ← → Subjective", 'font': {'size': 14}},
+            gauge={
+                'axis': {'range': [0, 1], 'tickwidth': 1},
+                'bar': {'color': "purple"},
+                'steps': [
+                    {'range': [0, 0.3], 'color': "lightblue"},
+                    {'range': [0.3, 0.7], 'color': "yellow"},
+                    {'range': [0.7, 1], 'color': "orange"}
+                ],
+            }
+        ))
+        fig.update_layout(height=300, margin=dict(l=20, r=20, t=40, b=20))
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Subjectivity interpretation
+        st.markdown("**Interpretation:**")
+        if sentiment_result['subjectivity'] > 0.7:
+            st.info("🎭 **Highly Expressive** - Contains personal opinions and emotions")
+        elif sentiment_result['subjectivity'] > 0.5:
+            st.info("💭 **Moderately Personal** - Mix of facts and opinions")
+        elif sentiment_result['subjectivity'] > 0.3:
+            st.info("📊 **Slightly Personal** - Mostly factual with some opinions")
+        else:
+            st.info("🎯 **Objective** - Factual and neutral presentation")
+    
+    with col2:
+        st.markdown("### 📈 Advanced Metrics")
+        
+        # Calculate additional metrics
+        total_words = len(transcript.split())
+        emotional_ratio = emo['total_emotional_words'] / total_words if total_words > 0 else 0
+        sentiment_strength = abs(sentiment_result['polarity'])
+        emotional_volatility = sentiment_result['sentiment_variance']
+        consistency = max(0, 1 - emotional_volatility) if emotional_volatility <= 1 else 0
+        
+        # Display metrics in a clean grid
+        metrics_data = [
+            ("Emotional Ratio", f"{emotional_ratio:.1%}", "% of emotionally charged words"),
+            ("Sentiment Strength", f"{sentiment_strength:.3f}", "Absolute strength (0-1)"),
+            ("Emotional Volatility", f"{emotional_volatility:.3f}", "Sentiment variation"),
+            ("Consistency Score", f"{consistency:.3f}", "How stable the sentiment is")
+        ]
+        
+        for i, (label, value, help_text) in enumerate(metrics_data):
+            if i % 2 == 0:
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    st.metric(label, value, help=help_text)
+            else:
+                with col_b:
+                    st.metric(label, value, help=help_text)
+    
+    st.markdown("---")
+    
+    # Sentiment Timeline (if multiple sentences)
+    if len(sentiment_result['sentence_sentiments']) > 1:
+        st.markdown("## 📈 Sentiment Journey Throughout Speech")
+        
+        sentence_nums = list(range(1, len(sentiment_result['sentence_sentiments']) + 1))
+        sentiments = sentiment_result['sentence_sentiments']
+        
+        # Create enhanced timeline chart
+        fig = go.Figure()
+        
+        # Main sentiment line with improved styling
+        fig.add_trace(go.Scatter(
+            x=sentence_nums,
+            y=sentiments,
+            mode='lines+markers',
+            name='Sentiment Score',
+            line=dict(color='#1f77b4', width=3),
+            marker=dict(size=8, color='#1f77b4'),
+            hovertemplate='<b>Sentence %{x}</b><br>Sentiment: %{y:.3f}<extra></extra>'
+        ))
+        
+        # Add trend line if we have enough data points
+        if len(sentiments) > 2:
+            z = np.polyfit(sentence_nums, sentiments, 1)
+            p = np.poly1d(z)
+            fig.add_trace(go.Scatter(
+                x=sentence_nums,
+                y=p(sentence_nums),
+                mode='lines',
+                name='Trend Line',
+                line=dict(color='red', width=2, dash='dash'),
+                hovertemplate='<b>Trend</b><br>Value: %{y:.3f}<extra></extra>'
+            ))
+        
+        # Add reference lines with better styling
+        fig.add_hline(y=0, line_dash="dot", line_color="gray", opacity=0.7,
+                     annotation_text="Neutral", annotation_position="bottom right")
+        fig.add_hline(y=0.5, line_dash="dot", line_color="green", opacity=0.5,
+                     annotation_text="Positive Zone", annotation_position="top right")
+        fig.add_hline(y=-0.5, line_dash="dot", line_color="red", opacity=0.5,
+                     annotation_text="Negative Zone", annotation_position="bottom right")
+        
+        fig.update_layout(
+            title={
+                'text': "Sentiment Evolution Across Sentences",
+                'x': 0.5,
+                'font': {'size': 18}
+            },
+            xaxis_title="Sentence Number",
+            yaxis_title="Sentiment Score",
+            height=400,
+            showlegend=True,
+            hovermode='x unified',
+            margin=dict(l=50, r=50, t=80, b=50)
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Sentiment progression analysis
+        if len(sentiments) >= 3:
+            st.markdown("### 📊 Sentiment Progression Analysis")
+            
+            third = len(sentiments) // 3
+            trend_start = sum(sentiments[:third]) / third if third > 0 else sentiments[0]
+            trend_middle = sum(sentiments[third:2*third]) / third if third > 0 else sentiments[len(sentiments)//2]
+            trend_end = sum(sentiments[-third:]) / third if third > 0 else sentiments[-1]
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Opening Sentiment", f"{trend_start:.3f}", help="Average sentiment at the beginning")
+            with col2:
+                st.metric("Middle Sentiment", f"{trend_middle:.3f}", help="Average sentiment in the middle")
+            with col3:
+                st.metric("Closing Sentiment", f"{trend_end:.3f}", help="Average sentiment at the end")
+            
+            # Trend interpretation
+            if trend_end > trend_start + 0.1:
+                st.success("📈 **Positive Journey** - Sentiment improves throughout the speech")
+            elif trend_end < trend_start - 0.1:
+                st.error("📉 **Declining Trend** - Sentiment becomes more negative over time")
+            else:
+                st.info("➡️ **Stable Sentiment** - Consistent emotional tone maintained")
+    
+    st.markdown("---")
+    
+    # Key Insights Section
+    st.markdown("## 🎯 Key Insights & Summary")
+    
+    col1, col2 = st.columns(2, gap="large")
+    
+    with col1:
+        st.markdown("### 🔍 Sentiment Breakdown")
+        
+        # Polarity interpretation
+        if sentiment_result["polarity"] > 0.5:
+            polarity_desc = "**Very Positive** - Expresses strong positive emotions and optimism"
+        elif sentiment_result["polarity"] > 0.1:
+            polarity_desc = "**Positive** - Generally favorable and upbeat tone"
+        elif sentiment_result["polarity"] > -0.1:
+            polarity_desc = "**Neutral** - Balanced, factual, or matter-of-fact tone"
+        elif sentiment_result["polarity"] > -0.5:
+            polarity_desc = "**Negative** - Generally unfavorable or critical tone"
+        else:
+            polarity_desc = "**Very Negative** - Expresses strong negative emotions or criticism"
+        
+        st.markdown(f"**Sentiment:** {polarity_desc}")
+        st.markdown(f"**Objectivity:** {sentiment_result['subjectivity_level']}")
+        st.markdown(f"**Emotional Density:** {emo['emotional_density']:.1%} of words are emotionally charged")
+        
+        # Communication style assessment
+        style_notes = []
+        if sentiment_result['sentiment_variance'] > 0.2:
+            style_notes.append("**Emotionally Dynamic** - Sentiment varies throughout")
+        else:
+            style_notes.append("**Emotionally Consistent** - Stable sentiment throughout")
+        
+        if sentiment_result['subjectivity'] > 0.7:
+            style_notes.append("**Highly Expressive** - Personal and emotional communication")
+        elif sentiment_result['subjectivity'] < 0.3:
+            style_notes.append("**Factual Communicator** - Objective and informative style")
+        else:
+            style_notes.append("**Balanced Communicator** - Mix of facts and personal views")
+        
+        st.markdown("### 🗣️ Communication Style")
+        for note in style_notes:
+            st.markdown(f"• {note}")
+    
+    with col2:
+        st.markdown("### 📋 Overall Assessment")
+        
+        # Create comprehensive assessment
+        assessment_parts = [
+            f"**Primary Tone:** {sentiment_result['overall_sentiment']} with {sentiment_result['confidence_level'].lower()} confidence",
+            f"**Expression Style:** {sentiment_result['subjectivity_level'].lower()} communication approach",
+            f"**Emotional Content:** {emo['emotional_density']:.1%} emotional word density"
+        ]
+        
+        # Add specific insights based on the data
+        if emo['positive_words'] > emo['negative_words'] * 2:
+            assessment_parts.append("**Positivity Focus:** Strong emphasis on positive language")
+        elif emo['negative_words'] > emo['positive_words'] * 2:
+            assessment_parts.append("**Critical Focus:** Emphasis on challenges or concerns")
+        
+        if sentiment_result['sentiment_variance'] > 0.3:
+            assessment_parts.append("**Emotional Range:** High variability in emotional expression")
+        
+        for part in assessment_parts:
+            st.markdown(f"• {part}")
+        
+        # Final recommendation or insight
+        st.markdown("### 💡 Key Takeaway")
+        if sentiment_result['polarity'] > 0.3:
+            st.success("The speaker demonstrates a positive and optimistic communication style.")
+        elif sentiment_result['polarity'] < -0.3:
+            st.warning("The speaker expresses concerns or negative sentiments that may need attention.")
+        else:
+            st.info("The speaker maintains a balanced and neutral communication approach.")
+
 def main_app():
     """Main application after login"""
     st.title("🎤 Enhanced Audio Transcription & Sentiment Analysis")
@@ -442,7 +777,7 @@ def main_app():
             st.rerun()
     
     st.markdown("### Upload an audio file for transcription and sentiment analysis")
-    st.info("Supported formats: WAV, MP3, MP4, M4A, FLAC, OGG | Recommended: Clear audio with minimal background noise")
+    st.info("💡 **Supported formats:** WAV, MP3, MP4, M4A, FLAC, OGG | **Recommended:** Clear audio with minimal background noise")
     
     # File uploader
     uploaded_file = st.file_uploader(
@@ -453,23 +788,23 @@ def main_app():
     
     if uploaded_file is not None:
         # Display file info
-        st.success(f"File uploaded: {uploaded_file.name}")
+        st.success(f"✅ File uploaded: **{uploaded_file.name}**")
         file_size = len(uploaded_file.getvalue()) / (1024 * 1024)  # Size in MB
-        st.write(f"File size: {file_size:.2f} MB")
+        st.info(f"📊 File size: **{file_size:.2f} MB**")
         
         # Audio quality tips
         if file_size > 10:
-            st.warning("⚠️ Large file detected. Processing may take longer. For best results, use clear audio with minimal background noise.")
+            st.warning("⚠️ **Large file detected.** Processing may take longer. For best results, use clear audio with minimal background noise.")
         
         # Process button
         if st.button("🚀 Process Audio", type="primary"):
-            with st.spinner("Converting and optimizing audio file..."):
+            with st.spinner("🔄 Converting and optimizing audio file..."):
                 # Convert audio to WAV
                 wav_file_path = convert_audio_to_wav(uploaded_file)
                 
                 if wav_file_path:
                     # Transcribe audio with enhanced method
-                    with st.spinner("Transcribing audio..."):
+                    with st.spinner("🎯 Transcribing audio... This may take a moment."):
                         transcript, status = transcribe_audio(wav_file_path)
                     
                     # Clean up temporary file
@@ -479,429 +814,112 @@ def main_app():
                         pass
                     
                     if "Success" in status and transcript and len(transcript.strip()) > 0:
-                        st.markdown("---")
-                        st.success(f"✅ Transcription completed: {status}")
+                        st.success(f"✅ **Transcription completed successfully!** {status}")
                         
                         # Display word count
                         word_count = len(transcript.split())
-                        st.info(f"📊 Total words transcribed: **{word_count}**")
+                        st.info(f"📊 **Total words transcribed:** {word_count}")
                         
-                        # Detailed sentiment analysis FIRST
+                        # SENTIMENT ANALYSIS FIRST (above transcript)
                         if word_count >= 3:  # Only analyze if we have sufficient text
-                            with st.spinner("Performing comprehensive sentiment analysis..."):
+                            with st.spinner("🧠 Performing comprehensive sentiment analysis..."):
                                 sentiment_result = analyze_sentiment_detailed(transcript)
                             
                             if sentiment_result:
-                                st.markdown("---")
-                                st.markdown("## 📊 Comprehensive Sentiment Analysis")
-                                
-                                # Main sentiment display
-                                col1, col2, col3, col4 = st.columns(4)
-                                
-                                with col1:
-                                    st.metric("Overall Sentiment", 
-                                             f"{sentiment_result['sentiment_emoji']} {sentiment_result['overall_sentiment']}")
-                                
-                                with col2:
-                                    st.metric("Polarity Score", f"{sentiment_result['polarity']:.3f}")
-                                
-                                with col3:
-                                    st.metric("Subjectivity Score", f"{sentiment_result['subjectivity']:.3f}")
-                                
-                                with col4:
-                                    st.metric("Confidence Level", sentiment_result['confidence_level'])
-                                
-                                # Visual Charts Section
-                                st.markdown("### 📈 Visual Analysis")
-                                
-                                # Create sentiment distribution chart
-                                col1, col2 = st.columns(2)
-                                
-                                with col1:
-                                    st.markdown("#### 🎯 Sentiment Polarity Gauge")
-                                    # Create a gauge-like visualization
-                                    import plotly.graph_objects as go
-                                    
-                                    fig = go.Figure(go.Indicator(
-                                        mode = "gauge+number+delta",
-                                        value = sentiment_result['polarity'],
-                                        domain = {'x': [0, 1], 'y': [0, 1]},
-                                        title = {'text': "Sentiment Polarity"},
-                                        delta = {'reference': 0},
-                                        gauge = {
-                                            'axis': {'range': [-1, 1]},
-                                            'bar': {'color': "darkblue"},
-                                            'steps': [
-                                                {'range': [-1, -0.5], 'color': "red"},
-                                                {'range': [-0.5, -0.1], 'color': "orange"},
-                                                {'range': [-0.1, 0.1], 'color': "yellow"},
-                                                {'range': [0.1, 0.5], 'color': "lightgreen"},
-                                                {'range': [0.5, 1], 'color': "green"}
-                                            ],
-                                            'threshold': {
-                                                'line': {'color': "red", 'width': 4},
-                                                'thickness': 0.75,
-                                                'value': 0.9
-                                            }
-                                        }
-                                    ))
-                                    fig.update_layout(height=300)
-                                    st.plotly_chart(fig, use_container_width=True)
-                                
-                                with col2:
-                                    st.markdown("#### 🎭 Emotional Word Distribution")
-                                    emo = sentiment_result['emotional_keywords']
-                                    
-                                    # Create pie chart for emotional words
-                                    labels = ['Positive Words', 'Negative Words', 'Neutral Words']
-                                    values = [emo['positive_words'], emo['negative_words'], emo['neutral_words']]
-                                    colors = ['#2E8B57', '#DC143C', '#808080']
-                                    
-                                    fig = go.Figure(data=[go.Pie(
-                                        labels=labels, 
-                                        values=values,
-                                        marker_colors=colors,
-                                        hole=0.4
-                                    )])
-                                    fig.update_traces(textposition='inside', textinfo='percent+label')
-                                    fig.update_layout(
-                                        title="Distribution of Emotional Words",
-                                        height=300,
-                                        showlegend=True
-                                    )
-                                    st.plotly_chart(fig, use_container_width=True)
-                                
-                                # Subjectivity vs Objectivity Chart
-                                st.markdown("#### 📊 Subjectivity Analysis")
-                                col1, col2 = st.columns(2)
-                                
-                                with col1:
-                                    # Subjectivity gauge
-                                    fig = go.Figure(go.Indicator(
-                                        mode = "gauge+number",
-                                        value = sentiment_result['subjectivity'],
-                                        domain = {'x': [0, 1], 'y': [0, 1]},
-                                        title = {'text': "Subjectivity Level"},
-                                        gauge = {
-                                            'axis': {'range': [0, 1]},
-                                            'bar': {'color': "purple"},
-                                            'steps': [
-                                                {'range': [0, 0.3], 'color': "lightblue"},
-                                                {'range': [0.3, 0.7], 'color': "yellow"},
-                                                {'range': [0.7, 1], 'color': "orange"}
-                                            ],
-                                        }
-                                    ))
-                                    fig.update_layout(height=300)
-                                    st.plotly_chart(fig, use_container_width=True)
-                                
-                                with col2:
-                                    # Sentiment intensity heatmap
-                                    st.markdown("**Sentiment Intensity Heatmap**")
-                                    
-                                    # Create intensity data
-                                    intensity_data = [
-                                        ['Positive Intensity', abs(max(0, sentiment_result['polarity']))],
-                                        ['Negative Intensity', abs(min(0, sentiment_result['polarity']))],
-                                        ['Emotional Intensity', sentiment_result['subjectivity']],
-                                        ['Confidence Level', abs(sentiment_result['polarity'])]
-                                    ]
-                                    
-                                    fig = go.Figure(data=go.Heatmap(
-                                        z=[[item[1] for item in intensity_data]],
-                                        x=[item[0] for item in intensity_data],
-                                        y=['Intensity'],
-                                        colorscale='RdYlGn',
-                                        showscale=True
-                                    ))
-                                    fig.update_layout(height=200)
-                                    st.plotly_chart(fig, use_container_width=True)
-                                
-                                # Advanced Metrics
-                                st.markdown("### 🔬 Advanced Sentiment Metrics")
-                                
-                                # Calculate additional metrics
-                                total_words = len(transcript.split())
-                                emotional_ratio = emo['total_emotional_words'] / total_words if total_words > 0 else 0
-                                sentiment_strength = abs(sentiment_result['polarity'])
-                                emotional_volatility = sentiment_result['sentiment_variance']
-                                
-                                col1, col2, col3, col4 = st.columns(4)
-                                
-                                with col1:
-                                    st.metric("Emotional Ratio", f"{emotional_ratio:.2%}", 
-                                             help="Percentage of emotionally charged words")
-                                
-                                with col2:
-                                    st.metric("Sentiment Strength", f"{sentiment_strength:.3f}",
-                                             help="Absolute strength of sentiment (0-1)")
-                                
-                                with col3:
-                                    st.metric("Emotional Volatility", f"{emotional_volatility:.3f}",
-                                             help="How much sentiment varies throughout")
-                                
-                                with col4:
-                                    # Calculate sentiment consistency
-                                    consistency = 1 - emotional_volatility if emotional_volatility <= 1 else 0
-                                    st.metric("Sentiment Consistency", f"{consistency:.3f}",
-                                             help="How consistent the sentiment remains")
-                                
-                                # Sentiment Timeline Chart (Enhanced)
-                                if len(sentiment_result['sentence_sentiments']) > 1:
-                                    st.markdown("#### 📈 Sentiment Journey Throughout Speech")
-                                    
-                                    # Create more detailed timeline
-                                    sentence_nums = list(range(1, len(sentiment_result['sentence_sentiments']) + 1))
-                                    sentiments = sentiment_result['sentence_sentiments']
-                                    
-                                    # Create the timeline chart with additional features
-                                    fig = go.Figure()
-                                    
-                                    # Main sentiment line
-                                    fig.add_trace(go.Scatter(
-                                        x=sentence_nums,
-                                        y=sentiments,
-                                        mode='lines+markers',
-                                        name='Sentiment Score',
-                                        line=dict(color='blue', width=3),
-                                        marker=dict(size=8)
-                                    ))
-                                    
-                                    # Add trend line
-                                    if len(sentiments) > 2:
-                                        z = np.polyfit(sentence_nums, sentiments, 1)
-                                        p = np.poly1d(z)
-                                        fig.add_trace(go.Scatter(
-                                            x=sentence_nums,
-                                            y=p(sentence_nums),
-                                            mode='lines',
-                                            name='Trend Line',
-                                            line=dict(color='red', width=2, dash='dash')
-                                        ))
-                                    
-                                    # Add horizontal reference lines
-                                    fig.add_hline(y=0, line_dash="dot", line_color="gray", 
-                                                 annotation_text="Neutral", annotation_position="bottom right")
-                                    fig.add_hline(y=0.5, line_dash="dot", line_color="green", opacity=0.5,
-                                                 annotation_text="Positive Threshold", annotation_position="top right")
-                                    fig.add_hline(y=-0.5, line_dash="dot", line_color="red", opacity=0.5,
-                                                 annotation_text="Negative Threshold", annotation_position="bottom right")
-                                    
-                                    fig.update_layout(
-                                        title="Sentiment Evolution Across Sentences",
-                                        xaxis_title="Sentence Number",
-                                        yaxis_title="Sentiment Score",
-                                        height=400,
-                                        showlegend=True
-                                    )
-                                    
-                                    st.plotly_chart(fig, use_container_width=True)
-                                    
-                                    # Sentiment trend analysis with more detail
-                                    if len(sentiments) >= 3:
-                                        trend_start = sum(sentiments[:len(sentiments)//3]) / len(sentiments[:len(sentiments)//3])
-                                        trend_middle = sum(sentiments[len(sentiments)//3:2*len(sentiments)//3]) / len(sentiments[len(sentiments)//3:2*len(sentiments)//3])
-                                        trend_end = sum(sentiments[-len(sentiments)//3:]) / len(sentiments[-len(sentiments)//3:])
-                                        
-                                        col1, col2, col3 = st.columns(3)
-                                        with col1:
-                                            st.metric("Opening Sentiment", f"{trend_start:.3f}")
-                                        with col2:
-                                            st.metric("Middle Sentiment", f"{trend_middle:.3f}")
-                                        with col3:
-                                            st.metric("Closing Sentiment", f"{trend_end:.3f}")
-                                        
-                                        if trend_end > trend_start + 0.1:
-                                            st.success("📈 **Positive Journey** - Sentiment improves throughout the speech")
-                                        elif trend_end < trend_start - 0.1:
-                                            st.error("📉 **Declining Trend** - Sentiment becomes more negative over time")
-                                        else:
-                                            st.info("➡️ **Stable Sentiment** - Consistent emotional tone maintained")
-                                
-                                # Word Cloud Simulation (Text-based)
-                                st.markdown("#### ☁️ Key Emotional Expressions")
-                                
-                                # Extract and display key emotional phrases
-                                positive_phrases = []
-                                negative_phrases = []
-                                
-                                # Simple phrase extraction based on emotional words
-                                words = transcript.lower().split()
-                                positive_indicators = ['good', 'great', 'excellent', 'amazing', 'wonderful', 'love', 'like', 'happy', 'pleased']
-                                negative_indicators = ['bad', 'terrible', 'awful', 'hate', 'dislike', 'sad', 'angry', 'disappointed']
-                                
-                                for i, word in enumerate(words):
-                                    if any(pos in word for pos in positive_indicators):
-                                        # Get context around the word
-                                        start = max(0, i-2)
-                                        end = min(len(words), i+3)
-                                        phrase = ' '.join(words[start:end])
-                                        positive_phrases.append(phrase)
-                                    elif any(neg in word for neg in negative_indicators):
-                                        start = max(0, i-2)
-                                        end = min(len(words), i+3)
-                                        phrase = ' '.join(words[start:end])
-                                        negative_phrases.append(phrase)
-                                
-                                col1, col2 = st.columns(2)
-                                with col1:
-                                    st.markdown("**🟢 Positive Expressions:**")
-                                    if positive_phrases:
-                                        for phrase in positive_phrases[:5]:  # Show top 5
-                                            st.write(f"• *{phrase.title()}*")
-                                    else:
-                                        st.write("• No strong positive expressions detected")
-                                
-                                with col2:
-                                    st.markdown("**🔴 Critical Expressions:**")
-                                    if negative_phrases:
-                                        for phrase in negative_phrases[:5]:  # Show top 5
-                                            st.write(f"• *{phrase.title()}*")
-                                    else:
-                                        st.write("• No strong negative expressions detected")
-                                
-                                # Detailed Analysis Sections
-                                st.markdown("### 🔍 Detailed Analysis")
-                                
-                                # Sentiment Interpretation
-                                col1, col2 = st.columns(2)
-                                
-                                with col1:
-                                    st.markdown("#### 📈 Sentiment Interpretation")
-                                    
-                                    polarity_desc = ""
-                                    if sentiment_result["polarity"] > 0.5:
-                                        polarity_desc = "**Very positive** - Expresses strong positive emotions"
-                                    elif sentiment_result["polarity"] > 0.1:
-                                        polarity_desc = "**Positive** - Generally favorable tone"
-                                    elif sentiment_result["polarity"] > -0.1:
-                                        polarity_desc = "**Neutral** - Balanced or factual tone"
-                                    elif sentiment_result["polarity"] > -0.5:
-                                        polarity_desc = "**Negative** - Generally unfavorable tone"
-                                    else:
-                                        polarity_desc = "**Very negative** - Expresses strong negative emotions"
-                                    
-                                    st.write(f"**Polarity ({sentiment_result['polarity']:.3f}):** {polarity_desc}")
-                                    st.write(f"**Subjectivity ({sentiment_result['subjectivity']:.3f}):** {sentiment_result['subjectivity_level']}")
-                                    
-                                    if sentiment_result['subjectivity'] > 0.5:
-                                        st.write("💭 This text contains personal opinions, emotions, or subjective statements.")
-                                    else:
-                                        st.write("📊 This text is mostly factual and objective.")
-                                
-                                with col2:
-                                    st.markdown("#### 🎭 Emotional Keywords Analysis")
-                                    emo = sentiment_result['emotional_keywords']
-                                    
-                                    st.write(f"**Positive words:** {emo['positive_words']}")
-                                    st.write(f"**Negative words:** {emo['negative_words']}")
-                                    st.write(f"**Neutral words:** {emo['neutral_words']}")
-                                    st.write(f"**Emotional density:** {emo['emotional_density']:.2%}")
-                                    
-                                    if emo['emotional_density'] > 0.1:
-                                        st.write("🔥 High emotional content detected")
-                                    elif emo['emotional_density'] > 0.05:
-                                        st.write("😊 Moderate emotional content")
-                                    else:
-                                        st.write("😐 Low emotional content")
-                                
-                                # Speaking Style Analysis (simplified without linguistic features)
-                                st.markdown("#### 🗣️ Speaking Style Analysis")
-                                
-                                style_notes = []
-                                
-                                if sentiment_result['sentiment_variance'] > 0.2:
-                                    style_notes.append("**Variable emotions** - Sentiment changes throughout the speech")
-                                
-                                # Simple style analysis based on sentiment only
-                                if sentiment_result['polarity'] > 0.5:
-                                    style_notes.append("**Positive speaker** - Predominantly positive communication style")
-                                elif sentiment_result['polarity'] < -0.5:
-                                    style_notes.append("**Critical speaker** - Predominantly negative communication style")
-                                else:
-                                    style_notes.append("**Balanced speaker** - Neutral communication style")
-                                
-                                if sentiment_result['subjectivity'] > 0.7:
-                                    style_notes.append("**Expressive speaker** - Highly subjective and emotional")
-                                elif sentiment_result['subjectivity'] < 0.3:
-                                    style_notes.append("**Factual speaker** - Objective and matter-of-fact")
-                                
-                                if style_notes:
-                                    for note in style_notes:
-                                        st.write(f"• {note}")
-                                else:
-                                    st.write("• **Balanced speaker** - Neutral speaking style")
-                                
-                                # Sentiment Progression
-                                if len(sentiment_result['sentence_sentiments']) > 1:
-                                    # This section is now handled above in the Visual Analysis section
-                                    pass
-                                
-                                # Overall Assessment
-                                st.markdown("#### 🎯 Overall Assessment")
-                                
-                                assessment = f"""
-                                **Communication Style:** {sentiment_result['overall_sentiment']} tone with {sentiment_result['confidence_level'].lower()} confidence.
-                                
-                                **Emotional Pattern:** The speaker demonstrates {sentiment_result['subjectivity_level'].lower()} expression with 
-                                {emo['emotional_density']:.1%} emotional word density.
-                                
-                                **Key Insights:**
-                                • Primary sentiment: {sentiment_result['overall_sentiment']} ({sentiment_result['polarity']:.3f})
-                                • Objectivity level: {sentiment_result['subjectivity_level']}
-                                • Emotional intensity: {sentiment_result['confidence_level']}
-                                • Communication style: {"Expressive" if sentiment_result['subjectivity'] > 0.5 else "Objective"}
-                                """
-                                
-                                st.markdown(assessment)
+                                # Display comprehensive sentiment analysis
+                                display_sentiment_analysis(sentiment_result, transcript)
                             else:
-                                st.warning("Could not perform detailed sentiment analysis.")
+                                st.warning("⚠️ Could not perform detailed sentiment analysis.")
                         else:
-                            st.warning("⚠️ Transcript too short for meaningful sentiment analysis. Need at least 3 words.")
+                            st.warning("⚠️ **Transcript too short for meaningful sentiment analysis.** Need at least 3 words.")
                         
-                        # Display transcript AFTER sentiment analysis (ONLY ONCE)
+                        # TRANSCRIPT DISPLAY (after sentiment analysis)
                         st.markdown("---")
-                        st.markdown("## 📝 Complete Transcription")
+                        st.markdown("# 📝 Complete Audio Transcription")
+                        st.markdown("")
                         
-                        # Display full transcript directly
-                        st.markdown("### Full Audio Transcript:")
+                        # Display transcript in a clean, readable format
+                        st.markdown("### 🎙️ Your Audio Content:")
                         
-                        # Format transcript with better readability
+                        # Create a clean transcript display
                         formatted_transcript = transcript.replace('. ', '.\n\n')  # Add line breaks after sentences
-                        st.markdown(f"**{formatted_transcript}**")
                         
-                        # Additional transcript info
+                        # Display transcript in a nice container
+                        st.markdown(
+                            f"""
+                            <div style="
+                                background-color: #f8f9fa;
+                                padding: 20px;
+                                border-radius: 10px;
+                                border-left: 4px solid #007bff;
+                                margin: 10px 0;
+                                font-family: 'Georgia', serif;
+                                line-height: 1.6;
+                                font-size: 16px;
+                            ">
+                                {formatted_transcript}
+                            </div>
+                            """, 
+                            unsafe_allow_html=True
+                        )
+                        
+                        # Transcript statistics
                         st.markdown("---")
-                        st.markdown("**Transcript Statistics:**")
-                        col1, col2, col3 = st.columns(3)
+                        st.markdown("### 📈 Transcript Statistics")
+                        
+                        col1, col2, col3, col4 = st.columns(4)
+                        
                         with col1:
                             st.metric("Total Words", word_count)
+                        
                         with col2:
                             sentences = len(re.split(r'[.!?]+', transcript))
-                            st.metric("Estimated Sentences", max(1, sentences - 1))
+                            sentence_count = max(1, sentences - 1)
+                            st.metric("Sentences", sentence_count)
+                        
                         with col3:
-                            avg_words = word_count / max(1, sentences - 1)
+                            avg_words = word_count / sentence_count
                             st.metric("Avg Words/Sentence", f"{avg_words:.1f}")
                         
-                        # Option to copy transcript (REMOVED - no duplicate)
+                        with col4:
+                            # Estimate reading time (average 200 words per minute)
+                            reading_time = word_count / 200
+                            st.metric("Est. Reading Time", f"{reading_time:.1f} min")
+                        
+                        # Success message
+                        st.success("🎉 **Processing completed successfully!** Your audio has been transcribed and analyzed.")
                     
                     else:
-                        st.error(f"❌ Transcription failed: {status}")
-                        st.markdown("### 🔧 Troubleshooting Tips:")
-                        st.markdown("""
-                        - **Check audio quality:** Ensure clear speech with minimal background noise
-                        - **Audio format:** Try converting to WAV format before uploading
-                        - **Speaking pace:** Moderate speaking pace works best
-                        - **Language:** Currently optimized for English language
-                        - **Internet connection:** Google Speech Recognition requires internet access
-                        - **File size:** Very large files may timeout - try shorter clips
-                        """)
+                        st.error(f"❌ **Transcription failed:** {status}")
                         
-                        # Option to install offline recognition
-                        st.info("💡 **Tip:** For offline processing, ensure pocketsphinx is installed: `pip install pocketsphinx`")
+                        # Enhanced troubleshooting section
+                        st.markdown("---")
+                        st.markdown("### 🔧 Troubleshooting Guide")
+                        
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.markdown("**🎵 Audio Quality Tips:**")
+                            st.markdown("""
+                            - Ensure clear speech with minimal background noise
+                            - Use a moderate speaking pace (not too fast/slow)
+                            - Record in a quiet environment
+                            - Avoid echo or reverberation
+                            """)
+                        
+                        with col2:
+                            st.markdown("**🔧 Technical Solutions:**")
+                            st.markdown("""
+                            - Try converting to WAV format before uploading
+                            - Check your internet connection (Google Speech API)
+                            - For large files, try splitting into smaller segments
+                            - Ensure the audio language is English
+                            """)
+                        
+                        st.info("💡 **Pro Tip:** For offline processing, ensure pocketsphinx is installed: `pip install pocketsphinx`")
                 
                 else:
-                    st.error("❌ Failed to process the audio file. Please try a different format or check the file.")
+                    st.error("❌ **Failed to process the audio file.** Please try a different format or check the file integrity.")
 
 def main():
     """Main function to control app flow"""
