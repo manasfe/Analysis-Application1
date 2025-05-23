@@ -9,6 +9,7 @@ import pandas as pd
 import re
 from collections import Counter
 import nltk
+nltk.download('all')
 
 # Download required NLTK data
 @st.cache_resource
