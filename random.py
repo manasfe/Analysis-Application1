@@ -9,7 +9,7 @@ import pandas as pd
 import re
 from collections import Counter
 import nltk
-nltk.download("all")
+nltk.download('all')
 import math
 
 # Download required NLTK data
@@ -303,51 +303,7 @@ def analyze_emotional_keywords(text):
         'emotional_density': total_emotional / len(words) if words else 0
     }
 
-def analyze_linguistic_features(text):
-    """Analyze linguistic features of the text with error handling"""
-    try:
-        # Try to use TextBlob for sentence detection
-        try:
-            blob = TextBlob(text)
-            sentence_count = len(blob.sentences)
-        except Exception:
-            # Fallback: count sentences using simple regex
-            sentence_count = len(re.split(r'[.!?]+', text))
-            sentence_count = max(1, sentence_count - 1)  # Subtract 1 for empty string at end
-        
-        # Basic statistics
-        word_count = len(text.split())
-        avg_sentence_length = word_count / sentence_count if sentence_count > 0 else 0
-        
-        # Punctuation analysis
-        exclamation_count = text.count('!')
-        question_count = text.count('?')
-        
-        # Uppercase analysis (indicating emphasis/shouting)
-        uppercase_ratio = sum(1 for c in text if c.isupper()) / len(text) if text else 0
-        
-        return {
-            'word_count': word_count,
-            'sentence_count': sentence_count,
-            'avg_sentence_length': round(avg_sentence_length, 1),
-            'exclamation_marks': exclamation_count,
-            'question_marks': question_count,
-            'uppercase_ratio': round(uppercase_ratio, 3)
-        }
-    except Exception as e:
-        st.warning(f"Simplified linguistic analysis used due to: {str(e)}")
-        # Fallback analysis
-        word_count = len(text.split()) if text else 0
-        sentence_count = max(1, len(re.split(r'[.!?]+', text)) - 1) if text else 1
-        
-        return {
-            'word_count': word_count,
-            'sentence_count': sentence_count,
-            'avg_sentence_length': round(word_count / sentence_count, 1) if sentence_count > 0 else 0,
-            'exclamation_marks': text.count('!') if text else 0,
-            'question_marks': text.count('?') if text else 0,
-            'uppercase_ratio': round(sum(1 for c in text if c.isupper()) / len(text), 3) if text else 0
-        }
+
 
 def calculate_variance(values):
     """Calculate variance without numpy"""
@@ -408,7 +364,6 @@ def analyze_sentiment_detailed(text):
         
         # Additional analyses
         emotional_keywords = analyze_emotional_keywords(text)
-        linguistic_features = analyze_linguistic_features(text)
         
         # Sentence-level sentiment analysis with error handling
         sentence_sentiments = []
@@ -430,7 +385,6 @@ def analyze_sentiment_detailed(text):
             "confidence_level": confidence_level,
             "subjectivity_level": subjectivity_level,
             "emotional_keywords": emotional_keywords,
-            "linguistic_features": linguistic_features,
             "sentence_sentiments": sentence_sentiments,
             "sentiment_variance": round(sentiment_variance, 3)
         }
@@ -596,45 +550,26 @@ def main_app():
                                     else:
                                         st.write("😐 Low emotional content")
                                 
-                                # Linguistic Features
-                                st.markdown("#### 📝 Linguistic Features")
-                                ling = sentiment_result['linguistic_features']
-                                
-                                col1, col2, col3 = st.columns(3)
-                                
-                                with col1:
-                                    st.metric("Word Count", ling['word_count'])
-                                    st.metric("Sentences", ling['sentence_count'])
-                                
-                                with col2:
-                                    st.metric("Avg Sentence Length", f"{ling['avg_sentence_length']} words")
-                                    st.metric("Exclamation Marks", ling['exclamation_marks'])
-                                
-                                with col3:
-                                    st.metric("Question Marks", ling['question_marks'])
-                                    st.metric("Uppercase Ratio", f"{ling['uppercase_ratio']:.2%}")
-                                
-                                # Speaking Style Analysis
+                                # Speaking Style Analysis (simplified without linguistic features)
                                 st.markdown("#### 🗣️ Speaking Style Analysis")
                                 
                                 style_notes = []
                                 
-                                if ling['exclamation_marks'] > 2:
-                                    style_notes.append("**Emphatic speaker** - Uses exclamation marks frequently")
-                                
-                                if ling['question_marks'] > 2:
-                                    style_notes.append("**Inquisitive speaker** - Asks many questions")
-                                
-                                if ling['avg_sentence_length'] > 20:
-                                    style_notes.append("**Complex speaker** - Uses long, detailed sentences")
-                                elif ling['avg_sentence_length'] < 8:
-                                    style_notes.append("**Concise speaker** - Uses short, direct sentences")
-                                
-                                if ling['uppercase_ratio'] > 0.05:
-                                    style_notes.append("**Animated speaker** - Uses emphasis through capitalization")
-                                
                                 if sentiment_result['sentiment_variance'] > 0.2:
                                     style_notes.append("**Variable emotions** - Sentiment changes throughout the speech")
+                                
+                                # Simple style analysis based on sentiment only
+                                if sentiment_result['polarity'] > 0.5:
+                                    style_notes.append("**Positive speaker** - Predominantly positive communication style")
+                                elif sentiment_result['polarity'] < -0.5:
+                                    style_notes.append("**Critical speaker** - Predominantly negative communication style")
+                                else:
+                                    style_notes.append("**Balanced speaker** - Neutral communication style")
+                                
+                                if sentiment_result['subjectivity'] > 0.7:
+                                    style_notes.append("**Expressive speaker** - Highly subjective and emotional")
+                                elif sentiment_result['subjectivity'] < 0.3:
+                                    style_notes.append("**Factual speaker** - Objective and matter-of-fact")
                                 
                                 if style_notes:
                                     for note in style_notes:
@@ -682,7 +617,7 @@ def main_app():
                                 • Primary sentiment: {sentiment_result['overall_sentiment']} ({sentiment_result['polarity']:.3f})
                                 • Objectivity level: {sentiment_result['subjectivity_level']}
                                 • Emotional intensity: {sentiment_result['confidence_level']}
-                                • Communication complexity: {"High" if ling['avg_sentence_length'] > 15 else "Moderate" if ling['avg_sentence_length'] > 10 else "Simple"}
+                                • Communication style: {"Expressive" if sentiment_result['subjectivity'] > 0.5 else "Objective"}
                                 """
                                 
                                 st.markdown(assessment)
