@@ -1,6 +1,35 @@
+# Core Streamlit and Web Framework
 streamlit>=1.28.0
-SpeechRecognition>=3.10.0
+
+# Audio Processing
 pydub>=0.25.1
+speech-recognition>=3.10.0
+
+# Natural Language Processing
 textblob>=0.17.1
-pandas>=1.5.0
-pyaudio>=0.2.11
+nltk>=3.8.1
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Audio Format Support (Optional but recommended)
+# Note: You may need to install ffmpeg separately on your system
+# For Windows: Download from https://ffmpeg.org/download.html
+# For Mac: brew install ffmpeg  
+# For Linux: sudo apt-get install ffmpeg
+
+# Offline Speech Recognition (Optional)
+# Uncomment the line below if you want offline speech recognition
+# pocketsphinx>=5.0.0
+
+# Additional Audio Processing (Optional)
+# scipy>=1.10.0  # For advanced audio processing
+# librosa>=0.10.0  # For audio feature extraction (if needed)
+
+# System Dependencies (Usually pre-installed)
+io
+tempfile
+os
+re
+collections
