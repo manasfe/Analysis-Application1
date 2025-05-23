@@ -8,6 +8,25 @@ from textblob import TextBlob
 import pandas as pd
 import re
 from collections import Counter
+import nltk
+
+# Download required NLTK data
+@st.cache_resource
+def download_nltk_data():
+    """Download required NLTK data for TextBlob"""
+    try:
+        # Download required corpora
+        nltk.download('punkt', quiet=True)
+        nltk.download('brown', quiet=True)
+        nltk.download('movie_reviews', quiet=True)
+        nltk.download('vader_lexicon', quiet=True)
+        return True
+    except Exception as e:
+        st.error(f"Error downloading NLTK data: {str(e)}")
+        return False
+
+# Initialize NLTK data
+download_nltk_data()
 
 # Set page config
 st.set_page_config(
@@ -192,13 +211,19 @@ def analyze_emotional_keywords(text):
     }
 
 def analyze_linguistic_features(text):
-    """Analyze linguistic features of the text"""
+    """Analyze linguistic features of the text with error handling"""
     try:
-        blob = TextBlob(text)
+        # Try to use TextBlob for sentence detection
+        try:
+            blob = TextBlob(text)
+            sentence_count = len(blob.sentences)
+        except Exception:
+            # Fallback: count sentences using simple regex
+            sentence_count = len(re.split(r'[.!?]+', text))
+            sentence_count = max(1, sentence_count - 1)  # Subtract 1 for empty string at end
         
         # Basic statistics
         word_count = len(text.split())
-        sentence_count = len(blob.sentences)
         avg_sentence_length = word_count / sentence_count if sentence_count > 0 else 0
         
         # Punctuation analysis
@@ -217,14 +242,18 @@ def analyze_linguistic_features(text):
             'uppercase_ratio': round(uppercase_ratio, 3)
         }
     except Exception as e:
-        st.error(f"Error in linguistic analysis: {str(e)}")
+        st.warning(f"Simplified linguistic analysis used due to: {str(e)}")
+        # Fallback analysis
+        word_count = len(text.split()) if text else 0
+        sentence_count = max(1, len(re.split(r'[.!?]+', text)) - 1) if text else 1
+        
         return {
-            'word_count': 0,
-            'sentence_count': 0,
-            'avg_sentence_length': 0,
-            'exclamation_marks': 0,
-            'question_marks': 0,
-            'uppercase_ratio': 0
+            'word_count': word_count,
+            'sentence_count': sentence_count,
+            'avg_sentence_length': round(word_count / sentence_count, 1) if sentence_count > 0 else 0,
+            'exclamation_marks': text.count('!') if text else 0,
+            'question_marks': text.count('?') if text else 0,
+            'uppercase_ratio': round(sum(1 for c in text if c.isupper()) / len(text), 3) if text else 0
         }
 
 def calculate_variance(values):
@@ -237,7 +266,7 @@ def calculate_variance(values):
     return variance
 
 def analyze_sentiment_detailed(text):
-    """Comprehensive sentiment analysis of the text"""
+    """Comprehensive sentiment analysis of the text with enhanced error handling"""
     if not text.strip():
         return None
     
@@ -288,14 +317,14 @@ def analyze_sentiment_detailed(text):
         emotional_keywords = analyze_emotional_keywords(text)
         linguistic_features = analyze_linguistic_features(text)
         
-        # Sentence-level sentiment analysis
+        # Sentence-level sentiment analysis with error handling
         sentence_sentiments = []
         try:
             for sentence in blob.sentences:
                 sent_polarity = sentence.sentiment.polarity
                 sentence_sentiments.append(sent_polarity)
         except Exception as e:
-            st.warning(f"Could not analyze individual sentences: {str(e)}")
+            st.info("Using simplified sentence analysis due to missing language data.")
             sentence_sentiments = [polarity]  # Use overall polarity as fallback
         
         sentiment_variance = calculate_variance(sentence_sentiments)
@@ -315,6 +344,7 @@ def analyze_sentiment_detailed(text):
     
     except Exception as e:
         st.error(f"Error in sentiment analysis: {str(e)}")
+        st.info("Please ensure all required packages are installed and NLTK data is downloaded.")
         return None
 
 def main_app():
@@ -398,6 +428,9 @@ def main_app():
                             
                             with col4:
                                 st.metric("Confidence Level", sentiment_result['confidence_level'])
+                            
+                            # Rest of the sentiment analysis display code remains the same...
+                            # [Including all the detailed analysis sections from the original code]
                             
                             # Detailed Analysis Sections
                             st.markdown("### 🔍 Detailed Analysis")
