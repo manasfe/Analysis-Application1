@@ -1,86 +1,4 @@
-# Sentiment Timeline Chart (Enhanced) with beautiful styling
-                                if len(sentiment_result['sentence_sentiments']) > 1:
-                                    st.markdown("""
-                                    <div style='background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); 
-                                               padding: 15px; border-radius: 10px; margin: 20px 0;'>
-                                        <h2 style='color: white; margin: 0; text-align: center; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);'>
-                                            📈 Sentiment Journey Throughout Speech
-                                        </h2>
-                                    </div>
-                                    """, unsafe_allow_html=True)
-                                    
-                                    # Create more detailed timeline
-                                    sentence_nums = list(range(1, len(sentiment_result['sentence_sentiments']) + 1))
-                                    sentiments = sentiment_result['sentence_sentiments']
-                                    
-                                    # Create the enhanced timeline chart
-                                    fig = go.Figure()
-                                    
-                                    # Main sentiment line with gradient fill
-                                    fig.add_trace(go.Scatter(
-                                        x=sentence_nums,
-                                        y=sentiments,
-                                        mode='lines+markers',
-                                        name='Sentiment Score',
-                                        line=dict(color='#667eea', width=4),
-                                        marker=dict(
-                                            size=10,
-                                            color=sentiments,
-                                            colorscale='RdYlGn',
-                                            showscale=True,
-                                            colorbar=dict(title="Sentiment", titleside="right")
-                                        ),
-                                        fill='tonexty',
-                                        fillcolor='rgba(102, 126, 234, 0.1)'
-                                    ))
-                                    
-                                    # Add trend line if enough data
-                                    if len(sentiments) > 2:
-                                        z = np.polyfit(sentence_nums, sentiments, 1)
-                                        p = np.poly1d(z)
-                                        fig.add_trace(go.Scatter(
-                                            x=sentence_nums,
-                                            y=p(sentence_nums),
-                                            mode='lines',
-                                            name='Trend Line',
-                                            line=dict(color='#ff6b6b', width=3, dash='dash'),
-                                            opacity=0.8
-                                        ))
-                                    
-                                    # Add horizontal reference lines with better styling
-                                    fig.add_hline(y=0, line_dash="dot", line_color="gray", line_width=2,
-                                                 annotation_text="Neutral", annotation_position="bottom right")
-                                    fig.add_hline(y=0.5, line_dash="dot", line_color="#4caf50", opacity=0.6, line_width=2,
-                                                 annotation_text="Positive Zone", annotation_position="top right")
-                                    fig.add_hline(y=-0.5, line_dash="dot", line_color="#f44336", opacity=0.6, line_width=2,
-                                                 annotation_text="Negative Zone", annotation_position="bottom right")
-                                    
-                                    fig.update_layout(
-                                        title=dict(
-                                            text="Sentiment Evolution Across Sentences",
-                                            font=dict(size=20, color='#333'),
-                                            x=0.5
-                                        ),
-                                        xaxis_title="Sentence Number",
-                                        yaxis_title="Sentiment Score",
-                                        height=500,
-                                        showlegend=True,
-                                        paper_bgcolor='rgba(0,0,0,0)',
-                                        plot_bgcolor='rgba(248,249,250,0.8)',
-                                        font=dict(family="Arial", size=12),
-                                        legend=dict(
-                                            bgcolor="rgba(255,255,255,0.8)",
-                                            bordercolor="rgba(0,0,0,0.2)",
-                                            borderwidth=1
-                                        )
-                                    )
-                                    
-                                    st.plotly_chart(fig, use_container_width=True)
-                                    
-                                    # Enhanced sentiment trend analysis with beautiful cards
-                                    if len(sentiments) >= 3:
-                                        trend_start = sum(sentiments[:len(sentiments)//3]) / len(sentiments[:len(sentiments)//3])
-                                        trend_middle = sum(sentiments[len(sentiments)//3:2*len(sentiments)//3]) / len(sentiments[len(sentiments)//3:2import streamlit as st
+import streamlit as st
 import speech_recognition as sr
 from pydub import AudioSegment
 import io
@@ -91,6 +9,7 @@ import pandas as pd
 import re
 from collections import Counter
 import nltk
+nltk.download('all')
 import numpy as np
 
 # Download required NLTK data
@@ -574,222 +493,132 @@ def main_app():
                             
                             if sentiment_result:
                                 st.markdown("---")
-                                st.markdown("""
-                                <div style='text-align: center; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); 
-                                           padding: 20px; border-radius: 15px; margin-bottom: 30px;'>
-                                    <h1 style='color: white; margin: 0; font-size: 2.5em; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);'>
-                                        📊 Comprehensive Sentiment Analysis
-                                    </h1>
-                                    <p style='color: #f0f0f0; margin: 10px 0 0 0; font-size: 1.2em;'>
-                                        Deep dive into the emotional landscape of your audio
-                                    </p>
-                                </div>
-                                """, unsafe_allow_html=True)
+                                st.markdown("## 📊 Comprehensive Sentiment Analysis")
                                 
-                                # Main sentiment display with enhanced styling
-                                st.markdown("### 🎯 Core Sentiment Metrics")
+                                # Main sentiment display
                                 col1, col2, col3, col4 = st.columns(4)
                                 
                                 with col1:
-                                    st.markdown(f"""
-                                    <div style='background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); 
-                                               padding: 20px; border-radius: 15px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1);'>
-                                        <h3 style='margin: 0; color: #333;'>Overall Sentiment</h3>
-                                        <h1 style='margin: 10px 0; font-size: 2.5em;'>{sentiment_result['sentiment_emoji']}</h1>
-                                        <p style='margin: 0; font-weight: bold; color: #444;'>{sentiment_result['overall_sentiment']}</p>
-                                    </div>
-                                    """, unsafe_allow_html=True)
+                                    st.metric("Overall Sentiment", 
+                                             f"{sentiment_result['sentiment_emoji']} {sentiment_result['overall_sentiment']}")
                                 
                                 with col2:
-                                    polarity_color = "#28a745" if sentiment_result['polarity'] > 0 else "#dc3545" if sentiment_result['polarity'] < 0 else "#ffc107"
-                                    st.markdown(f"""
-                                    <div style='background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); 
-                                               padding: 20px; border-radius: 15px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1);'>
-                                        <h3 style='margin: 0; color: #333;'>Polarity Score</h3>
-                                        <h1 style='margin: 10px 0; color: {polarity_color}; font-size: 2.2em;'>{sentiment_result['polarity']:.3f}</h1>
-                                        <p style='margin: 0; font-size: 0.9em; color: #666;'>Range: -1 to +1</p>
-                                    </div>
-                                    """, unsafe_allow_html=True)
+                                    st.metric("Polarity Score", f"{sentiment_result['polarity']:.3f}")
                                 
                                 with col3:
-                                    subj_color = "#ff6b6b" if sentiment_result['subjectivity'] > 0.7 else "#4ecdc4" if sentiment_result['subjectivity'] < 0.3 else "#45b7d1"
-                                    st.markdown(f"""
-                                    <div style='background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); 
-                                               padding: 20px; border-radius: 15px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1);'>
-                                        <h3 style='margin: 0; color: #333;'>Subjectivity</h3>
-                                        <h1 style='margin: 10px 0; color: {subj_color}; font-size: 2.2em;'>{sentiment_result['subjectivity']:.3f}</h1>
-                                        <p style='margin: 0; font-size: 0.9em; color: #666;'>0=Objective, 1=Subjective</p>
-                                    </div>
-                                    """, unsafe_allow_html=True)
+                                    st.metric("Subjectivity Score", f"{sentiment_result['subjectivity']:.3f}")
                                 
                                 with col4:
-                                    conf_color = "#28a745" if sentiment_result['confidence_level'] in ["High", "Very High"] else "#ffc107" if sentiment_result['confidence_level'] == "Moderate" else "#dc3545"
-                                    st.markdown(f"""
-                                    <div style='background: linear-gradient(135deg, #d299c2 0%, #fef9d7 100%); 
-                                               padding: 20px; border-radius: 15px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1);'>
-                                        <h3 style='margin: 0; color: #333;'>Confidence</h3>
-                                        <h1 style='margin: 10px 0; color: {conf_color}; font-size: 1.8em;'>{sentiment_result['confidence_level']}</h1>
-                                        <p style='margin: 0; font-size: 0.9em; color: #666;'>Analysis Certainty</p>
-                                    </div>
-                                    """, unsafe_allow_html=True)
+                                    st.metric("Confidence Level", sentiment_result['confidence_level'])
                                 
-                                st.markdown("<br>", unsafe_allow_html=True)
-                                
-                                # Visual Charts Section with enhanced styling
-                                st.markdown("""
-                                <div style='background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); 
-                                           padding: 15px; border-radius: 10px; margin: 20px 0;'>
-                                    <h2 style='color: white; margin: 0; text-align: center; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);'>
-                                        📈 Interactive Visual Analysis
-                                    </h2>
-                                </div>
-                                """, unsafe_allow_html=True)
+                                # Visual Charts Section
+                                st.markdown("### 📈 Visual Analysis")
                                 
                                 # Create sentiment distribution chart
                                 col1, col2 = st.columns(2)
                                 
                                 with col1:
                                     st.markdown("#### 🎯 Sentiment Polarity Gauge")
-                                    # Create a gauge-like visualization with enhanced styling
+                                    # Create a gauge-like visualization
                                     import plotly.graph_objects as go
                                     
                                     fig = go.Figure(go.Indicator(
                                         mode = "gauge+number+delta",
                                         value = sentiment_result['polarity'],
                                         domain = {'x': [0, 1], 'y': [0, 1]},
-                                        title = {'text': "Sentiment Polarity", 'font': {'size': 18, 'color': '#333'}},
-                                        delta = {'reference': 0, 'font': {'size': 16}},
-                                        number = {'font': {'size': 24, 'color': '#333'}},
+                                        title = {'text': "Sentiment Polarity"},
+                                        delta = {'reference': 0},
                                         gauge = {
-                                            'axis': {'range': [-1, 1], 'tickfont': {'size': 14}},
-                                            'bar': {'color': "#667eea", 'thickness': 0.8},
+                                            'axis': {'range': [-1, 1]},
+                                            'bar': {'color': "darkblue"},
                                             'steps': [
-                                                {'range': [-1, -0.5], 'color': "#ff6b6b"},
-                                                {'range': [-0.5, -0.1], 'color': "#ffa726"},
-                                                {'range': [-0.1, 0.1], 'color': "#ffeb3b"},
-                                                {'range': [0.1, 0.5], 'color': "#66bb6a"},
-                                                {'range': [0.5, 1], 'color': "#4caf50"}
+                                                {'range': [-1, -0.5], 'color': "red"},
+                                                {'range': [-0.5, -0.1], 'color': "orange"},
+                                                {'range': [-0.1, 0.1], 'color': "yellow"},
+                                                {'range': [0.1, 0.5], 'color': "lightgreen"},
+                                                {'range': [0.5, 1], 'color': "green"}
                                             ],
                                             'threshold': {
-                                                'line': {'color': "#333", 'width': 4},
+                                                'line': {'color': "red", 'width': 4},
                                                 'thickness': 0.75,
-                                                'value': sentiment_result['polarity']
+                                                'value': 0.9
                                             }
                                         }
                                     ))
-                                    fig.update_layout(
-                                        height=350,
-                                        paper_bgcolor='rgba(0,0,0,0)',
-                                        plot_bgcolor='rgba(0,0,0,0)',
-                                        font=dict(family="Arial", size=14)
-                                    )
+                                    fig.update_layout(height=300)
                                     st.plotly_chart(fig, use_container_width=True)
                                 
                                 with col2:
                                     st.markdown("#### 🎭 Emotional Word Distribution")
                                     emo = sentiment_result['emotional_keywords']
                                     
-                                    # Create enhanced pie chart
+                                    # Create pie chart for emotional words
                                     labels = ['Positive Words', 'Negative Words', 'Neutral Words']
                                     values = [emo['positive_words'], emo['negative_words'], emo['neutral_words']]
-                                    colors = ['#4caf50', '#f44336', '#9e9e9e']
+                                    colors = ['#2E8B57', '#DC143C', '#808080']
                                     
                                     fig = go.Figure(data=[go.Pie(
                                         labels=labels, 
                                         values=values,
-                                        marker=dict(colors=colors, line=dict(color='#FFFFFF', width=3)),
-                                        hole=0.4,
-                                        textfont=dict(size=14, color='white'),
-                                        textinfo='percent+label',
-                                        hovertemplate='<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>'
+                                        marker_colors=colors,
+                                        hole=0.4
                                     )])
+                                    fig.update_traces(textposition='inside', textinfo='percent+label')
                                     fig.update_layout(
-                                        title=dict(text="Distribution of Emotional Words", font=dict(size=16, color='#333')),
-                                        height=350,
-                                        paper_bgcolor='rgba(0,0,0,0)',
-                                        plot_bgcolor='rgba(0,0,0,0)',
-                                        showlegend=True,
-                                        legend=dict(font=dict(size=12))
+                                        title="Distribution of Emotional Words",
+                                        height=300,
+                                        showlegend=True
                                     )
                                     st.plotly_chart(fig, use_container_width=True)
                                 
-                                # Subjectivity vs Objectivity Chart with better styling
+                                # Subjectivity vs Objectivity Chart
                                 st.markdown("#### 📊 Subjectivity Analysis")
                                 col1, col2 = st.columns(2)
                                 
                                 with col1:
-                                    # Enhanced Subjectivity gauge
+                                    # Subjectivity gauge
                                     fig = go.Figure(go.Indicator(
                                         mode = "gauge+number",
                                         value = sentiment_result['subjectivity'],
                                         domain = {'x': [0, 1], 'y': [0, 1]},
-                                        title = {'text': "Subjectivity Level", 'font': {'size': 18, 'color': '#333'}},
-                                        number = {'font': {'size': 24, 'color': '#333'}},
+                                        title = {'text': "Subjectivity Level"},
                                         gauge = {
-                                            'axis': {'range': [0, 1], 'tickfont': {'size': 14}},
-                                            'bar': {'color': "#e91e63", 'thickness': 0.8},
+                                            'axis': {'range': [0, 1]},
+                                            'bar': {'color': "purple"},
                                             'steps': [
-                                                {'range': [0, 0.3], 'color': "#e3f2fd"},
-                                                {'range': [0.3, 0.7], 'color': "#fff3e0"},
-                                                {'range': [0.7, 1], 'color': "#fce4ec"}
+                                                {'range': [0, 0.3], 'color': "lightblue"},
+                                                {'range': [0.3, 0.7], 'color': "yellow"},
+                                                {'range': [0.7, 1], 'color': "orange"}
                                             ],
                                         }
                                     ))
-                                    fig.update_layout(
-                                        height=350,
-                                        paper_bgcolor='rgba(0,0,0,0)',
-                                        plot_bgcolor='rgba(0,0,0,0)'
-                                    )
+                                    fig.update_layout(height=300)
                                     st.plotly_chart(fig, use_container_width=True)
                                 
                                 with col2:
-                                    # Enhanced Sentiment intensity radar chart
-                                    st.markdown("**🔥 Sentiment Intensity Radar**")
+                                    # Sentiment intensity heatmap
+                                    st.markdown("**Sentiment Intensity Heatmap**")
                                     
-                                    categories = ['Positive Intensity', 'Negative Intensity', 'Emotional Depth', 'Confidence Level']
-                                    values = [
-                                        max(0, sentiment_result['polarity']),
-                                        abs(min(0, sentiment_result['polarity'])),
-                                        sentiment_result['subjectivity'],
-                                        abs(sentiment_result['polarity'])
+                                    # Create intensity data
+                                    intensity_data = [
+                                        ['Positive Intensity', abs(max(0, sentiment_result['polarity']))],
+                                        ['Negative Intensity', abs(min(0, sentiment_result['polarity']))],
+                                        ['Emotional Intensity', sentiment_result['subjectivity']],
+                                        ['Confidence Level', abs(sentiment_result['polarity'])]
                                     ]
                                     
-                                    fig = go.Figure()
-                                    fig.add_trace(go.Scatterpolar(
-                                        r=values,
-                                        theta=categories,
-                                        fill='toself',
-                                        fillcolor='rgba(102, 126, 234, 0.3)',
-                                        line=dict(color='rgba(102, 126, 234, 1)', width=3),
-                                        marker=dict(size=8, color='rgba(102, 126, 234, 1)'),
-                                        name='Intensity'
+                                    fig = go.Figure(data=go.Heatmap(
+                                        z=[[item[1] for item in intensity_data]],
+                                        x=[item[0] for item in intensity_data],
+                                        y=['Intensity'],
+                                        colorscale='RdYlGn',
+                                        showscale=True
                                     ))
-                                    
-                                    fig.update_layout(
-                                        polar=dict(
-                                            radialaxis=dict(
-                                                visible=True,
-                                                range=[0, 1],
-                                                tickfont=dict(size=12)
-                                            ),
-                                            angularaxis=dict(tickfont=dict(size=12))
-                                        ),
-                                        height=350,
-                                        paper_bgcolor='rgba(0,0,0,0)',
-                                        plot_bgcolor='rgba(0,0,0,0)',
-                                        showlegend=False
-                                    )
+                                    fig.update_layout(height=200)
                                     st.plotly_chart(fig, use_container_width=True)
                                 
-                                # Advanced Metrics with beautiful cards
-                                st.markdown("""
-                                <div style='background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); 
-                                           padding: 15px; border-radius: 10px; margin: 20px 0;'>
-                                    <h2 style='color: white; margin: 0; text-align: center; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);'>
-                                        🔬 Advanced Sentiment Metrics
-                                    </h2>
-                                </div>
-                                """, unsafe_allow_html=True)
+                                # Advanced Metrics
+                                st.markdown("### 🔬 Advanced Sentiment Metrics")
                                 
                                 # Calculate additional metrics
                                 total_words = len(transcript.split())
@@ -800,47 +629,22 @@ def main_app():
                                 col1, col2, col3, col4 = st.columns(4)
                                 
                                 with col1:
-                                    st.markdown(f"""
-                                    <div style='background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%); 
-                                               padding: 20px; border-radius: 15px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1);'>
-                                        <h4 style='margin: 0; color: #333;'>Emotional Ratio</h4>
-                                        <h2 style='margin: 10px 0; color: #d63384; font-size: 2em;'>{emotional_ratio:.1%}</h2>
-                                        <p style='margin: 0; font-size: 0.8em; color: #666;'>Emotionally charged words</p>
-                                    </div>
-                                    """, unsafe_allow_html=True)
+                                    st.metric("Emotional Ratio", f"{emotional_ratio:.2%}", 
+                                             help="Percentage of emotionally charged words")
                                 
                                 with col2:
-                                    st.markdown(f"""
-                                    <div style='background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); 
-                                               padding: 20px; border-radius: 15px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1);'>
-                                        <h4 style='margin: 0; color: #333;'>Sentiment Strength</h4>
-                                        <h2 style='margin: 10px 0; color: #0dcaf0; font-size: 2em;'>{sentiment_strength:.3f}</h2>
-                                        <p style='margin: 0; font-size: 0.8em; color: #666;'>Absolute strength (0-1)</p>
-                                    </div>
-                                    """, unsafe_allow_html=True)
+                                    st.metric("Sentiment Strength", f"{sentiment_strength:.3f}",
+                                             help="Absolute strength of sentiment (0-1)")
                                 
                                 with col3:
-                                    volatility_color = "#dc3545" if emotional_volatility > 0.3 else "#28a745" if emotional_volatility < 0.1 else "#ffc107"
-                                    st.markdown(f"""
-                                    <div style='background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); 
-                                               padding: 20px; border-radius: 15px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1);'>
-                                        <h4 style='margin: 0; color: #333;'>Emotional Volatility</h4>
-                                        <h2 style='margin: 10px 0; color: {volatility_color}; font-size: 2em;'>{emotional_volatility:.3f}</h2>
-                                        <p style='margin: 0; font-size: 0.8em; color: #666;'>Sentiment variation</p>
-                                    </div>
-                                    """, unsafe_allow_html=True)
+                                    st.metric("Emotional Volatility", f"{emotional_volatility:.3f}",
+                                             help="How much sentiment varies throughout")
                                 
                                 with col4:
+                                    # Calculate sentiment consistency
                                     consistency = 1 - emotional_volatility if emotional_volatility <= 1 else 0
-                                    consistency_color = "#28a745" if consistency > 0.7 else "#ffc107" if consistency > 0.4 else "#dc3545"
-                                    st.markdown(f"""
-                                    <div style='background: linear-gradient(135deg, #d299c2 0%, #fef9d7 100%); 
-                                               padding: 20px; border-radius: 15px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1);'>
-                                        <h4 style='margin: 0; color: #333;'>Consistency</h4>
-                                        <h2 style='margin: 10px 0; color: {consistency_color}; font-size: 2em;'>{consistency:.3f}</h2>
-                                        <p style='margin: 0; font-size: 0.8em; color: #666;'>Sentiment stability</p>
-                                    </div>
-                                    """, unsafe_allow_html=True)
+                                    st.metric("Sentiment Consistency", f"{consistency:.3f}",
+                                             help="How consistent the sentiment remains")
                                 
                                 # Sentiment Timeline Chart (Enhanced)
                                 if len(sentiment_result['sentence_sentiments']) > 1:
