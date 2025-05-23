@@ -11,8 +11,6 @@ from collections import Counter
 import nltk
 nltk.download('all')
 import numpy as np
-import plotly.graph_objects as go
-import plotly.express as px
 
 # Download required NLTK data
 @st.cache_resource
@@ -428,7 +426,7 @@ def analyze_sentiment_detailed(text):
         return None
 
 def display_sentiment_analysis(sentiment_result, transcript):
-    """Display comprehensive sentiment analysis with improved visual layout"""
+    """Display comprehensive sentiment analysis with improved visual layout using Streamlit charts"""
     st.markdown("---")
     st.markdown("# 📊 Comprehensive Sentiment Analysis")
     st.markdown("")
@@ -474,108 +472,81 @@ def display_sentiment_analysis(sentiment_result, transcript):
     # Visual Analysis Section
     st.markdown("## 📈 Visual Sentiment Analysis")
     
-    # Row 1: Polarity Gauge and Emotional Distribution
-    col1, col2 = st.columns(2, gap="large")
+    # Row 1: Sentiment Polarity and Emotional Distribution
+    col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("### 🎯 Sentiment Polarity Gauge")
+        st.markdown("### 🎯 Sentiment Polarity")
         
-        # Create polarity gauge
-        fig = go.Figure(go.Indicator(
-            mode="gauge+number+delta",
-            value=sentiment_result['polarity'],
-            domain={'x': [0, 1], 'y': [0, 1]},
-            title={'text': "Sentiment Polarity", 'font': {'size': 16}},
-            delta={'reference': 0, 'position': "top"},
-            gauge={
-                'axis': {'range': [-1, 1], 'tickwidth': 1, 'tickcolor': "darkblue"},
-                'bar': {'color': "darkblue"},
-                'steps': [
-                    {'range': [-1, -0.5], 'color': "#ff4444"},
-                    {'range': [-0.5, -0.1], 'color': "#ffaa44"},
-                    {'range': [-0.1, 0.1], 'color': "#ffff44"},
-                    {'range': [0.1, 0.5], 'color': "#88ff44"},
-                    {'range': [0.5, 1], 'color': "#44ff44"}
-                ],
-                'threshold': {
-                    'line': {'color': "red", 'width': 4},
-                    'thickness': 0.75,
-                    'value': 0.9
-                }
-            }
-        ))
-        fig.update_layout(height=350, margin=dict(l=20, r=20, t=40, b=20))
-        st.plotly_chart(fig, use_container_width=True)
+        # Create polarity visualization using progress bar and color coding
+        polarity_normalized = (sentiment_result['polarity'] + 1) / 2  # Convert -1,1 to 0,1
+        
+        if sentiment_result['polarity'] > 0.1:
+            st.success(f"Positive Sentiment: {sentiment_result['polarity']:.3f}")
+            st.progress(polarity_normalized)
+        elif sentiment_result['polarity'] < -0.1:
+            st.error(f"Negative Sentiment: {sentiment_result['polarity']:.3f}")
+            st.progress(polarity_normalized)
+        else:
+            st.info(f"Neutral Sentiment: {sentiment_result['polarity']:.3f}")
+            st.progress(polarity_normalized)
+        
+        # Polarity scale visualization
+        st.markdown("**Sentiment Scale:**")
+        st.markdown("🔴 Very Negative (-1.0) ←→ 🟡 Neutral (0.0) ←→ 🟢 Very Positive (+1.0)")
     
     with col2:
         st.markdown("### 🎭 Emotional Word Distribution")
         
         emo = sentiment_result['emotional_keywords']
-        labels = ['Positive', 'Negative', 'Neutral']
-        values = [emo['positive_words'], emo['negative_words'], emo['neutral_words']]
-        colors = ['#2E8B57', '#DC143C', '#808080']
         
-        fig = go.Figure(data=[go.Pie(
-            labels=labels, 
-            values=values,
-            marker_colors=colors,
-            hole=0.4,
-            textposition='inside', 
-            textinfo='percent+label',
-            hovertemplate='<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>'
-        )])
+        # Create DataFrame for bar chart
+        emotion_data = pd.DataFrame({
+            'Emotion Type': ['Positive', 'Negative', 'Neutral'],
+            'Word Count': [emo['positive_words'], emo['negative_words'], emo['neutral_words']]
+        })
         
-        fig.update_layout(
-            title={
-                'text': "Distribution of Emotional Words",
-                'x': 0.5,
-                'font': {'size': 16}
-            },
-            height=350,
-            showlegend=True,
-            margin=dict(l=20, r=20, t=40, b=20)
-        )
-        st.plotly_chart(fig, use_container_width=True)
+        # Display bar chart
+        st.bar_chart(emotion_data.set_index('Emotion Type'))
+        
+        # Display the actual numbers
+        col_a, col_b, col_c = st.columns(3)
+        with col_a:
+            st.metric("Positive", emo['positive_words'])
+        with col_b:
+            st.metric("Negative", emo['negative_words'])
+        with col_c:
+            st.metric("Neutral", emo['neutral_words'])
     
     st.markdown("---")
     
     # Row 2: Subjectivity Analysis
     st.markdown("## 🔍 Communication Style Analysis")
     
-    col1, col2 = st.columns(2, gap="large")
+    col1, col2 = st.columns(2)
     
     with col1:
         st.markdown("### 📊 Subjectivity Level")
         
-        # Subjectivity gauge
-        fig = go.Figure(go.Indicator(
-            mode="gauge+number",
-            value=sentiment_result['subjectivity'],
-            domain={'x': [0, 1], 'y': [0, 1]},
-            title={'text': "Objective ← → Subjective", 'font': {'size': 14}},
-            gauge={
-                'axis': {'range': [0, 1], 'tickwidth': 1},
-                'bar': {'color': "purple"},
-                'steps': [
-                    {'range': [0, 0.3], 'color': "lightblue"},
-                    {'range': [0.3, 0.7], 'color': "yellow"},
-                    {'range': [0.7, 1], 'color': "orange"}
-                ],
-            }
-        ))
-        fig.update_layout(height=300, margin=dict(l=20, r=20, t=40, b=20))
-        st.plotly_chart(fig, use_container_width=True)
+        # Subjectivity visualization
+        subjectivity_percent = sentiment_result['subjectivity'] * 100
+        st.progress(sentiment_result['subjectivity'])
         
-        # Subjectivity interpretation
-        st.markdown("**Interpretation:**")
         if sentiment_result['subjectivity'] > 0.7:
-            st.info("🎭 **Highly Expressive** - Contains personal opinions and emotions")
+            st.info(f"🎭 **Highly Subjective** ({subjectivity_percent:.1f}%)")
+            st.write("Contains personal opinions and emotions")
         elif sentiment_result['subjectivity'] > 0.5:
-            st.info("💭 **Moderately Personal** - Mix of facts and opinions")
+            st.info(f"💭 **Moderately Subjective** ({subjectivity_percent:.1f}%)")
+            st.write("Mix of facts and personal opinions")
         elif sentiment_result['subjectivity'] > 0.3:
-            st.info("📊 **Slightly Personal** - Mostly factual with some opinions")
+            st.info(f"📊 **Slightly Subjective** ({subjectivity_percent:.1f}%)")
+            st.write("Mostly factual with some opinions")
         else:
-            st.info("🎯 **Objective** - Factual and neutral presentation")
+            st.info(f"🎯 **Objective** ({subjectivity_percent:.1f}%)")
+            st.write("Factual and neutral presentation")
+        
+        st.markdown("**Objectivity Scale:**")
+        st.markdown("🎯 Objective (0%) ←→ 🎭 Subjective (100%)")
     
     with col2:
         st.markdown("### 📈 Advanced Metrics")
@@ -588,21 +559,13 @@ def display_sentiment_analysis(sentiment_result, transcript):
         consistency = max(0, 1 - emotional_volatility) if emotional_volatility <= 1 else 0
         
         # Display metrics in a clean grid
-        metrics_data = [
-            ("Emotional Ratio", f"{emotional_ratio:.1%}", "% of emotionally charged words"),
-            ("Sentiment Strength", f"{sentiment_strength:.3f}", "Absolute strength (0-1)"),
-            ("Emotional Volatility", f"{emotional_volatility:.3f}", "Sentiment variation"),
-            ("Consistency Score", f"{consistency:.3f}", "How stable the sentiment is")
-        ]
-        
-        for i, (label, value, help_text) in enumerate(metrics_data):
-            if i % 2 == 0:
-                col_a, col_b = st.columns(2)
-                with col_a:
-                    st.metric(label, value, help=help_text)
-            else:
-                with col_b:
-                    st.metric(label, value, help=help_text)
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.metric("Emotional Ratio", f"{emotional_ratio:.1%}", help="% of emotionally charged words")
+            st.metric("Emotional Volatility", f"{emotional_volatility:.3f}", help="Sentiment variation")
+        with col_b:
+            st.metric("Sentiment Strength", f"{sentiment_strength:.3f}", help="Absolute strength (0-1)")
+            st.metric("Consistency Score", f"{consistency:.3f}", help="How stable the sentiment is")
     
     st.markdown("---")
     
@@ -610,64 +573,20 @@ def display_sentiment_analysis(sentiment_result, transcript):
     if len(sentiment_result['sentence_sentiments']) > 1:
         st.markdown("## 📈 Sentiment Journey Throughout Speech")
         
-        sentence_nums = list(range(1, len(sentiment_result['sentence_sentiments']) + 1))
-        sentiments = sentiment_result['sentence_sentiments']
+        # Create DataFrame for line chart
+        sentiment_timeline = pd.DataFrame({
+            'Sentence': range(1, len(sentiment_result['sentence_sentiments']) + 1),
+            'Sentiment Score': sentiment_result['sentence_sentiments']
+        })
         
-        # Create enhanced timeline chart
-        fig = go.Figure()
-        
-        # Main sentiment line with improved styling
-        fig.add_trace(go.Scatter(
-            x=sentence_nums,
-            y=sentiments,
-            mode='lines+markers',
-            name='Sentiment Score',
-            line=dict(color='#1f77b4', width=3),
-            marker=dict(size=8, color='#1f77b4'),
-            hovertemplate='<b>Sentence %{x}</b><br>Sentiment: %{y:.3f}<extra></extra>'
-        ))
-        
-        # Add trend line if we have enough data points
-        if len(sentiments) > 2:
-            z = np.polyfit(sentence_nums, sentiments, 1)
-            p = np.poly1d(z)
-            fig.add_trace(go.Scatter(
-                x=sentence_nums,
-                y=p(sentence_nums),
-                mode='lines',
-                name='Trend Line',
-                line=dict(color='red', width=2, dash='dash'),
-                hovertemplate='<b>Trend</b><br>Value: %{y:.3f}<extra></extra>'
-            ))
-        
-        # Add reference lines with better styling
-        fig.add_hline(y=0, line_dash="dot", line_color="gray", opacity=0.7,
-                     annotation_text="Neutral", annotation_position="bottom right")
-        fig.add_hline(y=0.5, line_dash="dot", line_color="green", opacity=0.5,
-                     annotation_text="Positive Zone", annotation_position="top right")
-        fig.add_hline(y=-0.5, line_dash="dot", line_color="red", opacity=0.5,
-                     annotation_text="Negative Zone", annotation_position="bottom right")
-        
-        fig.update_layout(
-            title={
-                'text': "Sentiment Evolution Across Sentences",
-                'x': 0.5,
-                'font': {'size': 18}
-            },
-            xaxis_title="Sentence Number",
-            yaxis_title="Sentiment Score",
-            height=400,
-            showlegend=True,
-            hovermode='x unified',
-            margin=dict(l=50, r=50, t=80, b=50)
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
+        # Display line chart
+        st.line_chart(sentiment_timeline.set_index('Sentence'))
         
         # Sentiment progression analysis
-        if len(sentiments) >= 3:
+        if len(sentiment_result['sentence_sentiments']) >= 3:
             st.markdown("### 📊 Sentiment Progression Analysis")
             
+            sentiments = sentiment_result['sentence_sentiments']
             third = len(sentiments) // 3
             trend_start = sum(sentiments[:third]) / third if third > 0 else sentiments[0]
             trend_middle = sum(sentiments[third:2*third]) / third if third > 0 else sentiments[len(sentiments)//2]
@@ -694,7 +613,7 @@ def display_sentiment_analysis(sentiment_result, transcript):
     # Key Insights Section
     st.markdown("## 🎯 Key Insights & Summary")
     
-    col1, col2 = st.columns(2, gap="large")
+    col1, col2 = st.columns(2)
     
     with col1:
         st.markdown("### 🔍 Sentiment Breakdown")
@@ -718,7 +637,7 @@ def display_sentiment_analysis(sentiment_result, transcript):
         # Communication style assessment
         style_notes = []
         if sentiment_result['sentiment_variance'] > 0.2:
-            style_notes.append("**Emotionally Dynamic** - Sentiment varies throughout")
+            style_notes.append("**Emotionally Dynamic** - Sentiment changes throughout the speech")
         else:
             style_notes.append("**Emotionally Consistent** - Stable sentiment throughout")
         
@@ -763,6 +682,47 @@ def display_sentiment_analysis(sentiment_result, transcript):
             st.warning("The speaker expresses concerns or negative sentiments that may need attention.")
         else:
             st.info("The speaker maintains a balanced and neutral communication approach.")
+    
+    # Emotional Keywords Section
+    st.markdown("---")
+    st.markdown("## ☁️ Key Emotional Expressions")
+    
+    # Extract key emotional phrases
+    positive_phrases = []
+    negative_phrases = []
+    
+    words = transcript.lower().split()
+    positive_indicators = ['good', 'great', 'excellent', 'amazing', 'wonderful', 'love', 'like', 'happy', 'pleased']
+    negative_indicators = ['bad', 'terrible', 'awful', 'hate', 'dislike', 'sad', 'angry', 'disappointed']
+    
+    for i, word in enumerate(words):
+        if any(pos in word for pos in positive_indicators):
+            start = max(0, i-2)
+            end = min(len(words), i+3)
+            phrase = ' '.join(words[start:end])
+            positive_phrases.append(phrase)
+        elif any(neg in word for neg in negative_indicators):
+            start = max(0, i-2)
+            end = min(len(words), i+3)
+            phrase = ' '.join(words[start:end])
+            negative_phrases.append(phrase)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**🟢 Positive Expressions:**")
+        if positive_phrases:
+            for phrase in positive_phrases[:5]:  # Show top 5
+                st.write(f"• *{phrase.title()}*")
+        else:
+            st.write("• No strong positive expressions detected")
+    
+    with col2:
+        st.markdown("**🔴 Critical Expressions:**")
+        if negative_phrases:
+            for phrase in negative_phrases[:5]:  # Show top 5
+                st.write(f"• *{phrase.title()}*")
+        else:
+            st.write("• No strong negative expressions detected")
 
 def main_app():
     """Main application after login"""
