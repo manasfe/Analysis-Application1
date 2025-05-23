@@ -358,18 +358,23 @@ def analyze_sentiment_detailed(text):
         # Basic sentiment classification
         if polarity > 0.3:
             sentiment = "Strongly Positive"
+            sentiment_short = "Very Positive"
             sentiment_emoji = "😊"
         elif polarity > 0.1:
             sentiment = "Moderately Positive"
+            sentiment_short = "Positive"
             sentiment_emoji = "🙂"
         elif polarity > -0.1:
             sentiment = "Neutral"
+            sentiment_short = "Neutral"
             sentiment_emoji = "😐"
         elif polarity > -0.3:
             sentiment = "Moderately Negative"
+            sentiment_short = "Negative"
             sentiment_emoji = "😕"
         else:
             sentiment = "Strongly Negative"
+            sentiment_short = "Very Negative"
             sentiment_emoji = "😞"
         
         # Confidence level
@@ -433,35 +438,46 @@ def display_sentiment_analysis(sentiment_result, transcript):
     
     # Header metrics in a clean layout
     st.markdown("## 🎯 Key Sentiment Indicators")
-    col1, col2, col3, col4 = st.columns([1.2, 1, 1, 1])
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.markdown("**Overall Sentiment**")
-        st.markdown(f"<div style='text-align: center; font-size: 1.5em; color: #1f77b4; font-weight: bold; margin: 5px 0;'>{sentiment_result['overall_sentiment']}</div>", 
+        # Split sentiment into multiple lines if it contains "Moderately" or "Strongly"
+        sentiment_text = sentiment_result['overall_sentiment']
+        if "Moderately" in sentiment_text:
+            sentiment_display = sentiment_text.replace("Moderately ", "Moderately<br>")
+        elif "Strongly" in sentiment_text:
+            sentiment_display = sentiment_text.replace("Strongly ", "Strongly<br>")
+        else:
+            sentiment_display = sentiment_text
+            
+        st.markdown("**Overall Sentiment:**")
+        st.markdown(f"<div style='text-align: center; font-size: 1.2em; font-weight: bold; color: #1f77b4;'>{sentiment_display}</div>", 
                    unsafe_allow_html=True)
-        st.markdown(f"<div style='text-align: center; font-size: 2.5em; margin: 5px 0;'>{sentiment_result['sentiment_emoji']}</div>", 
+        st.markdown(f"<div style='text-align: center; font-size: 2em; margin-top: 5px;'>{sentiment_result['sentiment_emoji']}</div>", 
                    unsafe_allow_html=True)
     
     with col2:
-        st.markdown("**Polarity Score**")
-        st.markdown(f"<div style='text-align: center; font-size: 1.8em; color: #2e8b57; font-weight: bold;'>{sentiment_result['polarity']:.3f}</div>", 
-                   unsafe_allow_html=True)
-        st.markdown(f"<div style='text-align: center; font-size: 0.8em; color: #666;'>Range: -1.0 to +1.0</div>", 
-                   unsafe_allow_html=True)
+        st.metric(
+            label="Polarity Score", 
+            value=f"{sentiment_result['polarity']:.3f}",
+            delta=f"Range: -1.0 to +1.0",
+            help="Measures positive vs negative sentiment"
+        )
     
     with col3:
-        st.markdown("**Subjectivity Score**")
-        st.markdown(f"<div style='text-align: center; font-size: 1.8em; color: #ff6b35; font-weight: bold;'>{sentiment_result['subjectivity']:.3f}</div>", 
-                   unsafe_allow_html=True)
-        st.markdown(f"<div style='text-align: center; font-size: 0.8em; color: #666;'>Range: 0.0 to 1.0</div>", 
-                   unsafe_allow_html=True)
+        st.metric(
+            label="Subjectivity Score", 
+            value=f"{sentiment_result['subjectivity']:.3f}",
+            delta=f"Range: 0.0 to 1.0",
+            help="Measures objective vs subjective content"
+        )
     
     with col4:
-        st.markdown("**Confidence Level**")
-        st.markdown(f"<div style='text-align: center; font-size: 1.5em; color: #9d4edd; font-weight: bold;'>{sentiment_result['confidence_level']}</div>", 
-                   unsafe_allow_html=True)
-        st.markdown(f"<div style='text-align: center; font-size: 0.8em; color: #666;'>Assessment Confidence</div>", 
-                   unsafe_allow_html=True)
+        st.metric(
+            label="Confidence Level", 
+            value=sentiment_result['confidence_level'],
+            help="How confident we are in the sentiment assessment"
+        )
     
     st.markdown("---")
     
@@ -529,7 +545,7 @@ def display_sentiment_analysis(sentiment_result, transcript):
         st.progress(sentiment_result['subjectivity'])
         
         if sentiment_result['subjectivity'] > 0.7:
-            st.success(f"🎭 **Highly Subjective** ({subjectivity_percent:.1f}%)")
+            st.info(f"🎭 **Highly Subjective** ({subjectivity_percent:.1f}%)")
             st.write("Contains personal opinions and emotions")
         elif sentiment_result['subjectivity'] > 0.5:
             st.info(f"💭 **Moderately Subjective** ({subjectivity_percent:.1f}%)")
@@ -538,7 +554,7 @@ def display_sentiment_analysis(sentiment_result, transcript):
             st.info(f"📊 **Slightly Subjective** ({subjectivity_percent:.1f}%)")
             st.write("Mostly factual with some opinions")
         else:
-            st.success(f"🎯 **Objective** ({subjectivity_percent:.1f}%)")
+            st.info(f"🎯 **Objective** ({subjectivity_percent:.1f}%)")
             st.write("Factual and neutral presentation")
         
         st.markdown("**Objectivity Scale:**")
@@ -614,26 +630,20 @@ def display_sentiment_analysis(sentiment_result, transcript):
     with col1:
         st.markdown("### 🔍 Sentiment Breakdown")
         
-        # Polarity interpretation with better formatting
+        # Polarity interpretation
         if sentiment_result["polarity"] > 0.5:
             polarity_desc = "**Very Positive** - Expresses strong positive emotions and optimism"
-            color = "#28a745"
         elif sentiment_result["polarity"] > 0.1:
             polarity_desc = "**Positive** - Generally favorable and upbeat tone"
-            color = "#20c997"
         elif sentiment_result["polarity"] > -0.1:
             polarity_desc = "**Neutral** - Balanced, factual, or matter-of-fact tone"
-            color = "#6c757d"
         elif sentiment_result["polarity"] > -0.5:
             polarity_desc = "**Negative** - Generally unfavorable or critical tone"
-            color = "#fd7e14"
         else:
             polarity_desc = "**Very Negative** - Expresses strong negative emotions or criticism"
-            color = "#dc3545"
         
-        st.markdown(f"<div style='padding: 10px; border-left: 4px solid {color}; background-color: #f8f9fa; margin: 10px 0;'><strong>Sentiment:</strong> {polarity_desc}</div>", 
-                   unsafe_allow_html=True)
-        st.markdown(f"**Objectivity Level:** {sentiment_result['subjectivity_level']}")
+        st.markdown(f"**Sentiment:** {polarity_desc}")
+        st.markdown(f"**Objectivity:** {sentiment_result['subjectivity_level']}")
         st.markdown(f"**Emotional Density:** {emo['emotional_density']:.1%} of words are emotionally charged")
         
         # Communication style assessment
@@ -657,20 +667,24 @@ def display_sentiment_analysis(sentiment_result, transcript):
     with col2:
         st.markdown("### 📋 Overall Assessment")
         
-        # Create comprehensive assessment with better formatting
-        st.markdown(f"🎯 **Primary Tone:** {sentiment_result['overall_sentiment']}")
-        st.markdown(f"🔍 **Confidence Level:** {sentiment_result['confidence_level']}")
-        st.markdown(f"🗣️ **Expression Style:** {sentiment_result['subjectivity_level']} communication")
-        st.markdown(f"💭 **Emotional Content:** {emo['emotional_density']:.1%} emotional word density")
+        # Create comprehensive assessment
+        assessment_parts = [
+            f"**Primary Tone:** {sentiment_result['overall_sentiment']} with {sentiment_result['confidence_level'].lower()} confidence",
+            f"**Expression Style:** {sentiment_result['subjectivity_level'].lower()} communication approach",
+            f"**Emotional Content:** {emo['emotional_density']:.1%} emotional word density"
+        ]
         
         # Add specific insights based on the data
         if emo['positive_words'] > emo['negative_words'] * 2:
-            st.success("✨ **Positivity Focus:** Strong emphasis on positive language")
+            assessment_parts.append("**Positivity Focus:** Strong emphasis on positive language")
         elif emo['negative_words'] > emo['positive_words'] * 2:
-            st.warning("⚠️ **Critical Focus:** Emphasis on challenges or concerns")
+            assessment_parts.append("**Critical Focus:** Emphasis on challenges or concerns")
         
         if sentiment_result['sentiment_variance'] > 0.3:
-            st.info("📊 **Emotional Range:** High variability in emotional expression")
+            assessment_parts.append("**Emotional Range:** High variability in emotional expression")
+        
+        for part in assessment_parts:
+            st.markdown(f"• {part}")
         
         # Final recommendation or insight
         st.markdown("### 💡 Key Takeaway")
